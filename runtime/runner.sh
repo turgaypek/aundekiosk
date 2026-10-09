@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+# shellcheck source=../platform/lib.sh
+source "$SCRIPT_DIR/../platform/lib.sh"
+
+CONFIG_FILE="${AUNDEKIOSK_CONFIG_FILE:-/opt/aundekiosk/config.json}"
+STARTUP_DELAY="${AUNDEKIOSK_STARTUP_DELAY:-5}"
+
+export DISPLAY="${DISPLAY:-:0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+sleep "$STARTUP_DELAY"
+
+if ! has_urls "$CONFIG_FILE"; then
+  echo "No URLs found in $CONFIG_FILE. Exiting runner."
+  exit 0
+fi
+
+URLS=$(extract_urls_from_config "$CONFIG_FILE")
+
+# shellcheck disable=SC2086
+exec chromium \
+  $URLS \
+  --disable-component-update \
+  --disable-composited-antialiasing \
+  --disable-gpu-driver-bug-workarounds \
+  --disable-infobars \
+  --disable-low-res-tiling \
+  --disable-pinch \
+  --disable-session-crashed-bubble \
+  --disable-smooth-scrolling \
+  --enable-accelerated-video-decode \
+  --enable-gpu-rasterization \
+  --enable-oop-rasterization \
+  --force-device-scale-factor=1 \
+  --ignore-gpu-blocklist \
+  --kiosk \
+  --no-first-run \
+  --noerrdialogs
