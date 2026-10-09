@@ -1,0 +1,9 @@
+{
+  "sampleIntervalSeconds": 10,
+  "activeWindow": null,
+  "tiers": [
+    { "threshold": 70, "sustainedSamples": 10, "action": "log", "cooldownSeconds": 300 },
+    { "threshold": 80, "sustainedSamples": 10, "action": "restart_services", "cooldownSeconds": 300 },
+    { "threshold": 90, "sustainedSamples": 5, "action": "reboot", "cooldownSeconds": 600 }
+  ]
+}
