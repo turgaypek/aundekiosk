@@ -2,6 +2,7 @@ import { createNetworkApi } from "./network_api.ts";
 import { createCredentialStore } from "./auth/credential_store.ts";
 import { createAuditLog } from "./auth/audit_log.ts";
 import { createStepUpGuard } from "./auth/step_up.ts";
+import { PrivilegedCommandError } from "./privileged_runner.ts";
 import { assertEquals } from "./test_util.ts";
 
 async function withApi(
@@ -101,4 +102,32 @@ Deno.test("handleConfirm with the correct confirmPassword invokes the privileged
     assertEquals(res.status, 200);
     assertEquals(confirmCalls(), 1);
   });
+});
+
+// Final review (Important I8): confirm-network-config.sh exits with
+// code 2 to mean "nothing was pending" (already rolled back, or never
+// scheduled) — the API must report this as a distinct outcome, not a
+// bare 200 "confirmed" the user never actually got.
+Deno.test("handleConfirm returns 409 when nothing was pending (already rolled back)", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
+    await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
+    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog: createAuditLog({ logPath: `${dir}/audit.log` }) });
+    const api = createNetworkApi({
+      stepUpGuard,
+      runPrivilegedApply: async () => {},
+      runPrivilegedConfirm: async () => {
+        throw new PrivilegedCommandError("confirm-network-config.sh failed: no pending rollback", 2);
+      },
+    });
+    const res = await api.handleConfirm(
+      jsonRequest("/network-confirm", { confirmPassword: "a-long-enough-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 409);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });

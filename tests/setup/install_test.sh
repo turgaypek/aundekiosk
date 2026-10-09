@@ -46,4 +46,28 @@ assert_status 0 $? "install.sh installs the snmpd package"
 grep -q "pi-user.txt" "$INSTALL_SH"
 assert_status 0 $? "install.sh records the target user for change-os-password.sh"
 
+# Final review (Critical C2): the whole-tree "chown -R aundekiosk:aundekiosk
+# $AUNDEKIOSK_INSTALL_DIR" hands ownership of EVERYTHING under
+# /opt/aundekiosk to the dashboard's own unprivileged user. Writing
+# pi-user.txt (or the network rollback backup) under that same tree means
+# a compromised dashboard process could simply overwrite
+# "pi-user.txt" with "root" and then use the already-whitelisted
+# change-os-password.sh to set root's password — the "one recorded
+# username" restriction would be entirely cosmetic. Both files must live
+# in a directory the dashboard user never owns and can never write to.
+grep -qE "pi-user\.txt.*AUNDEKIOSK_PRIV_DIR|AUNDEKIOSK_PRIV_DIR.*pi-user\.txt" "$INSTALL_SH"
+assert_status 0 $? "install.sh writes pi-user.txt into the root-owned privileged-state directory, not the dashboard-owned tree"
+
+grep -qE "install -d -m 0700 -o root -g root \"\\\$AUNDEKIOSK_PRIV_DIR\"" "$INSTALL_SH"
+assert_status 0 $? "install.sh creates the privileged-state directory as root-owned, mode 0700"
+
+# The order matters: the directory and its root-owned contents must be
+# created BEFORE the blanket chown, and the chown must never reach back
+# over it (the directory lives outside $AUNDEKIOSK_INSTALL_DIR entirely,
+# so the existing "chown -R ... $AUNDEKIOSK_INSTALL_DIR" line cannot touch
+# it either way, but this pins "it is created" positively rather than by
+# the absence of a mistake).
+grep -q "AUNDEKIOSK_PRIV_DIR" "$SCRIPT_DIR/../../scripts/setup/common.sh"
+assert_status 0 $? "common.sh defines AUNDEKIOSK_PRIV_DIR"
+
 assert_summary

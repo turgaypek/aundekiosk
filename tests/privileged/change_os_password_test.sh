@@ -53,5 +53,12 @@ assert_status 0 $? "change-os-password.sh never calls chpasswd when the new pass
 bash "$HELPER" "unexpected-arg" > "$WORKDIR/reject3.txt" 2>&1
 assert_status 1 $? "change-os-password.sh rejects any command-line argument (data comes from stdin only)"
 
+# Final review (Critical C2): the DEFAULT path (used in production, when
+# no override env var is set) must point at the root-owned privileged
+# state directory, never back under /opt/aundekiosk where the dashboard's
+# own unprivileged user has write access.
+grep -q "AUNDEKIOSK_PI_USER_FILE:-/etc/aundekiosk-priv/pi-user.txt" "$HELPER"
+assert_status 0 $? "change-os-password.sh's default pi-user.txt path is outside the dashboard-owned tree"
+
 rm -rf "$WORKDIR"
 assert_summary

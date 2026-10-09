@@ -4,6 +4,18 @@
 // `TypeError: ... 'stderr' is not piped` AFTER the helper has already run
 // (final review: Critical C4c broke all five privileged endpoints this
 // way, undetected because every API-level test mocks this layer).
+// Carries the real exit code, not just a message — some privileged
+// helpers (confirm-network-config.sh) use a specific non-zero code to
+// mean something other than "failed" (e.g. "nothing was pending"), and
+// a caller needs the code to tell those cases apart (final review:
+// Important I8).
+export class PrivilegedCommandError extends Error {
+  constructor(message: string, public readonly code: number) {
+    super(message);
+    this.name = "PrivilegedCommandError";
+  }
+}
+
 export async function runPrivilegedCommand(
   command: string,
   args: string[],
@@ -24,6 +36,9 @@ export async function runPrivilegedCommand(
 
   const { code, stderr } = await child.output();
   if (code !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed: ${new TextDecoder().decode(stderr)}`);
+    throw new PrivilegedCommandError(
+      `${command} ${args.join(" ")} failed: ${new TextDecoder().decode(stderr)}`,
+      code,
+    );
   }
 }

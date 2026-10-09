@@ -13,8 +13,12 @@ if [ -z "$PI_USER" ]; then
 fi
 msg "$SUCCESS" "Target user identified as '$PI_USER'."
 
+msg "$INFO" "Creating the root-owned privileged-state directory..."
+install -d -m 0700 -o root -g root "$AUNDEKIOSK_PRIV_DIR"
+
 msg "$INFO" "Recording the target user for OS password changes..."
-echo "$PI_USER" > "$AUNDEKIOSK_INSTALL_DIR/pi-user.txt"
+echo "$PI_USER" > "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
+chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 
 msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd)..."
 apt-get update

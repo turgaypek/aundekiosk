@@ -19,7 +19,7 @@ if [[ "$#" -ne 0 ]]; then
   exit 1
 fi
 
-ALLOWED_USER_FILE="${AUNDEKIOSK_PI_USER_FILE:-/opt/aundekiosk/pi-user.txt}"
+ALLOWED_USER_FILE="${AUNDEKIOSK_PI_USER_FILE:-/etc/aundekiosk-priv/pi-user.txt}"
 
 if [[ ! -f "$ALLOWED_USER_FILE" ]]; then
   echo "No target user recorded at $ALLOWED_USER_FILE; cannot change a password." >&2

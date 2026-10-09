@@ -1,4 +1,4 @@
-import { runPrivilegedCommand } from "./privileged_runner.ts";
+import { PrivilegedCommandError, runPrivilegedCommand } from "./privileged_runner.ts";
 import { assertEquals } from "./test_util.ts";
 
 // Final review (Critical C4c): every call site previously piped stdin but
@@ -35,4 +35,19 @@ Deno.test("runPrivilegedCommand throws with the subprocess's stderr when it exit
   }
   assertEquals(threw, true);
   assertEquals(message.includes("boom from child"), true);
+});
+
+// Final review (Important I8): confirm-network-config.sh exits with a
+// specific code (2) to mean "nothing was pending" rather than "a real
+// failure" — callers need the exit code, not just a generic Error, to
+// tell those two cases apart and answer the API request correctly.
+Deno.test("runPrivilegedCommand throws a PrivilegedCommandError carrying the real exit code", async () => {
+  let caught: unknown;
+  try {
+    await runPrivilegedCommand(Deno.execPath(), ["eval", "Deno.exit(2);"]);
+  } catch (error) {
+    caught = error;
+  }
+  assertEquals(caught instanceof PrivilegedCommandError, true);
+  assertEquals((caught as PrivilegedCommandError).code, 2);
 });

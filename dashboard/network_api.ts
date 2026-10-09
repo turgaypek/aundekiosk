@@ -1,5 +1,6 @@
 import type { createStepUpGuard } from "./auth/step_up.ts";
 import { requireStepUp } from "./auth/require_step_up.ts";
+import { PrivilegedCommandError } from "./privileged_runner.ts";
 
 const VALID_INTERFACES = new Set(["eth0", "wlan0"]);
 const VALID_MODES = new Set(["dhcp", "static"]);
@@ -119,7 +120,18 @@ export function createNetworkApi(opts: NetworkApiOptions) {
       return new Response(stepUp.message, { status: stepUp.status });
     }
 
-    await runPrivilegedConfirm();
+    try {
+      await runPrivilegedConfirm();
+    } catch (error) {
+      // confirm-network-config.sh exits with code 2 specifically to mean
+      // "nothing was pending" (already rolled back, or never scheduled)
+      // — report that as a distinct outcome, not a bare 200 the user
+      // never actually got (final review: Important I8).
+      if (error instanceof PrivilegedCommandError && error.code === 2) {
+        return new Response("Network configuration was already rolled back (nothing was pending).", { status: 409 });
+      }
+      throw error;
+    }
     return new Response("Network configuration confirmed.", { status: 200 });
   }
 
