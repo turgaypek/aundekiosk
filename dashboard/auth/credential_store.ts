@@ -14,7 +14,7 @@ export interface CredentialStoreOptions {
 export type VerifyResult =
   | { outcome: "success" }
   | { outcome: "locked"; retryAfterMs: number }
-  | { outcome: "invalid" }
+  | { outcome: "invalid"; justLocked: boolean }
   | { outcome: "no-admin" };
 
 // Lockout doubles starting at 1 minute (on the 5th failure), capped at 30
@@ -31,6 +31,19 @@ function lockoutDurationMs(failedAttempts: number): number {
 
 export function createCredentialStore(opts: CredentialStoreOptions) {
   const { storePath } = opts;
+
+  // Every public method that reads-then-writes the store runs through this
+  // queue, one at a time. Without it, concurrent requests (e.g. a batch of
+  // parallel login guesses, or two first-run setup submissions) each read
+  // the record before any of the others' writes land, so the last write
+  // wins and silently drops the others — defeating the lockout counter and
+  // letting two "first" admins both succeed.
+  let queue: Promise<unknown> = Promise.resolve();
+  function serialize<T>(job: () => Promise<T>): Promise<T> {
+    const result = queue.then(job, job);
+    queue = result.then(() => undefined, () => undefined);
+    return result;
+  }
 
   async function read(): Promise<CredentialRecord | null> {
     try {
@@ -52,7 +65,7 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     return (await read()) !== null;
   }
 
-  async function createInitialAdmin(username: string, password: string): Promise<void> {
+  async function createInitialAdminLocked(username: string, password: string): Promise<void> {
     if (await hasAdmin()) {
       throw new Error("Admin already configured.");
     }
@@ -60,18 +73,23 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     await write({ username, passwordHash, failedAttempts: 0, lockedUntil: null });
   }
 
-  async function recordFailedAttempt(now: number): Promise<void> {
+  // Returns true only the moment a failure crosses the lockout threshold
+  // (so callers can audit-log the lockout itself, not just the plain
+  // failure), false for every attempt before or after that transition.
+  async function recordFailedAttempt(now: number): Promise<boolean> {
     const record = await read();
-    if (!record) return;
+    if (!record) return false;
+    const wasLocked = record.lockedUntil !== null;
     const failedAttempts = record.failedAttempts + 1;
     const lockedUntil = failedAttempts >= LOCKOUT_THRESHOLD ? now + lockoutDurationMs(failedAttempts) : null;
     await write({ ...record, failedAttempts, lockedUntil });
+    return lockedUntil !== null && !wasLocked;
   }
 
-  async function verifyCredentials(
+  async function verifyCredentialsLocked(
     username: string,
     password: string,
-    now: number = Date.now(),
+    now: number,
   ): Promise<VerifyResult> {
     const record = await read();
     if (!record) return { outcome: "no-admin" };
@@ -85,14 +103,14 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
       // roughly the same time as a wrong password — no username-guessing
       // side channel via response time.
       await verifyPassword(password, record.passwordHash);
-      await recordFailedAttempt(now);
-      return { outcome: "invalid" };
+      const justLocked = await recordFailedAttempt(now);
+      return { outcome: "invalid", justLocked };
     }
 
     const valid = await verifyPassword(password, record.passwordHash);
     if (!valid) {
-      await recordFailedAttempt(now);
-      return { outcome: "invalid" };
+      const justLocked = await recordFailedAttempt(now);
+      return { outcome: "invalid", justLocked };
     }
 
     if (record.failedAttempts > 0 || record.lockedUntil !== null) {
@@ -101,5 +119,11 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     return { outcome: "success" };
   }
 
-  return { hasAdmin, createInitialAdmin, verifyCredentials };
+  return {
+    hasAdmin,
+    createInitialAdmin: (username: string, password: string) =>
+      serialize(() => createInitialAdminLocked(username, password)),
+    verifyCredentials: (username: string, password: string, now: number = Date.now()) =>
+      serialize(() => verifyCredentialsLocked(username, password, now)),
+  };
 }
