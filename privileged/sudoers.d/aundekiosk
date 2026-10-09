@@ -1,0 +1,6 @@
+# AundeKiosk privileged helper whitelist.
+# The dashboard runs as the unprivileged `aundekiosk` system user and may
+# only invoke these exact, argument-free scripts without a password.
+# No wildcard arguments are ever granted here — each future privileged
+# action gets its own fixed line, added and reviewed individually.
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/restart-kiosk-services.sh

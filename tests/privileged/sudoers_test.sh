@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+source "$SCRIPT_DIR/../assert.sh"
+
+SUDOERS_FILE="$SCRIPT_DIR/../../privileged/sudoers.d/aundekiosk"
+
+grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/restart-kiosk-services.sh$" "$SUDOERS_FILE"
+assert_status 0 $? "sudoers file grants aundekiosk exactly the restart-kiosk-services.sh line"
+
+grep -qE '\*|\$\{|\$\(' "$SUDOERS_FILE"
+if [[ $? -eq 0 ]]; then
+  assert_eq "no-wildcards" "has-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
+else
+  assert_eq "no-wildcards" "no-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
+fi
+
+if command -v visudo >/dev/null 2>&1; then
+  visudo -c -f "$SUDOERS_FILE" > /tmp/aundekiosk_visudo_check.txt 2>&1
+  assert_status 0 $? "sudoers file passes visudo syntax check"
+else
+  echo "SKIP - visudo not available on this machine; this will be validated for real on the target Raspberry Pi during install."
+fi
+
+assert_summary
