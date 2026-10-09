@@ -12,3 +12,4 @@ aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh-password-a
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/change-os-password.sh
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/apply-network-config.sh
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/confirm-network-config.sh
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/configure-snmp.sh
