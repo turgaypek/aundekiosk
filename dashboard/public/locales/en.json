@@ -2,5 +2,15 @@
   "app_title": "AundeKiosk",
   "nav_add_placeholder": "...add webpage URLs as screens",
   "nav_add_button": "ADD",
-  "nav_apply_button": "APPLY"
+  "nav_apply_button": "APPLY",
+  "setup_heading": "Set up the admin account",
+  "setup_username_label": "Username",
+  "setup_password_label": "Password (min 12 characters)",
+  "setup_submit": "Create admin",
+  "login_heading": "Log in",
+  "login_username_label": "Username",
+  "login_password_label": "Password",
+  "login_submit": "Log in",
+  "logout_button": "Log out",
+  "remove_button": "Remove"
 }

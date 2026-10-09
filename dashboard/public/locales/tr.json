@@ -2,5 +2,15 @@
   "app_title": "AundeKiosk",
   "nav_add_placeholder": "...ekranlara eklemek için web sayfası URL'leri girin",
   "nav_add_button": "EKLE",
-  "nav_apply_button": "UYGULA"
+  "nav_apply_button": "UYGULA",
+  "setup_heading": "Yönetici hesabını oluşturun",
+  "setup_username_label": "Kullanıcı adı",
+  "setup_password_label": "Şifre (en az 12 karakter)",
+  "setup_submit": "Yönetici oluştur",
+  "login_heading": "Giriş yap",
+  "login_username_label": "Kullanıcı adı",
+  "login_password_label": "Şifre",
+  "login_submit": "Giriş yap",
+  "logout_button": "Çıkış yap",
+  "remove_button": "Kaldır"
 }
