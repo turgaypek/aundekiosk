@@ -10,6 +10,7 @@ import { createMonitorConfigApi } from "./monitor_config_api.ts";
 import { createSshApi } from "./ssh_api.ts";
 import { createOsPasswordApi } from "./os_password_api.ts";
 import { createNetworkApi } from "./network_api.ts";
+import { createSnmpApi } from "./snmp_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -114,6 +115,26 @@ export function createHandler(options: HandlerOptions = {}) {
       }
     },
   });
+  const snmpApi = createSnmpApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    runPrivilegedConfigure: async (payload) => {
+      const command = new Deno.Command("sudo", {
+        args: ["/opt/aundekiosk/privileged/configure-snmp.sh"],
+        stdin: "piped",
+      });
+      const child = command.spawn();
+      const writer = child.stdin.getWriter();
+      await writer.write(new TextEncoder().encode(JSON.stringify(payload)));
+      await writer.close();
+      const { code, stderr } = await child.output();
+      if (code !== 0) {
+        throw new Error(`configure-snmp.sh failed: ${new TextDecoder().decode(stderr)}`);
+      }
+    },
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -184,6 +205,14 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return networkApi.handleConfirm(req, session.username, ip);
+    }
+
+    if (url.pathname === "/snmp-config" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return snmpApi.handleConfigure(req, session.username, ip);
     }
 
     return serveStatic(url.pathname);
