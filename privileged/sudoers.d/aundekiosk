@@ -10,3 +10,5 @@ aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh.sh disable
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh-password-auth.sh enable
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh-password-auth.sh disable
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/change-os-password.sh
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/apply-network-config.sh
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/confirm-network-config.sh

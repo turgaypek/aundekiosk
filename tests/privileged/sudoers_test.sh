@@ -24,6 +24,13 @@ done
 grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/change-os-password.sh$" "$SUDOERS_FILE"
 assert_status 0 $? "sudoers file grants aundekiosk exactly the change-os-password.sh line"
 
+for line in \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/apply-network-config.sh" \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/confirm-network-config.sh"; do
+  grep -qF "$line" "$SUDOERS_FILE"
+  assert_status 0 $? "sudoers file grants the exact line: $line"
+done
+
 grep -qE '\*|\$\{|\$\(' "$SUDOERS_FILE"
 if [[ $? -eq 0 ]]; then
   assert_eq "no-wildcards" "has-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
