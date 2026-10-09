@@ -1,5 +1,12 @@
-import { createHandler } from "./server.ts";
+import { createHandler, resolveTlsMode } from "./server.ts";
 import { assertEquals } from "./test_util.ts";
+
+function fakeConnInfo(hostname: string): Deno.ServeHandlerInfo {
+  return {
+    remoteAddr: { transport: "tcp", hostname, port: 54321 },
+    completed: Promise.resolve(),
+  };
+}
 
 Deno.test("GET /config returns the sample config end to end", async () => {
   const dir = await Deno.makeTempDir();
@@ -107,4 +114,49 @@ Deno.test("the full setup -> login -> GET /config flow works end to end through 
   } finally {
     await Deno.remove(dir, { recursive: true });
   }
+});
+
+Deno.test("the audit log records the real connection IP, not a client-supplied X-Forwarded-For header", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+
+    await handle(
+      new Request("http://localhost/api/setup", {
+        method: "POST",
+        body: JSON.stringify({ username: "admin", password: "a-long-enough-password" }),
+        headers: { "x-forwarded-for": "9.9.9.9" },
+      }),
+      fakeConnInfo("198.51.100.42"),
+    );
+
+    const lines = (await Deno.readTextFile(`${dir}/audit.log`)).trim().split("\n").map((l) => JSON.parse(l));
+    assertEquals(lines[0].event, "admin_created");
+    assertEquals(lines[0].ip, "198.51.100.42");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("resolveTlsMode uses https when a certificate was loaded", () => {
+  assertEquals(resolveTlsMode(true, undefined), "https");
+});
+
+Deno.test("resolveTlsMode refuses to fall back to http by default when no certificate exists", () => {
+  let threw = false;
+  try {
+    resolveTlsMode(false, undefined);
+  } catch {
+    threw = true;
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test("resolveTlsMode allows http only with an explicit opt-in", () => {
+  assertEquals(resolveTlsMode(false, "1"), "http");
 });

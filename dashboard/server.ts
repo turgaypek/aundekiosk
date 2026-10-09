@@ -42,19 +42,25 @@ export function createHandler(options: HandlerOptions = {}) {
     auditLog: createAuditLog({ logPath: auditLogPath }),
   });
 
-  return async function handle(req: Request): Promise<Response> {
+  return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
+    // The real connection address — never a client-supplied header like
+    // X-Forwarded-For, which anyone can set to anything (there is no
+    // reverse proxy in front of this dashboard to make that header
+    // trustworthy). Deno.serve always provides `info`; it's optional here
+    // only so tests that don't care about the IP can omit it.
+    const ip = info && info.remoteAddr.transport === "tcp" ? info.remoteAddr.hostname : "unknown";
 
     if (url.pathname === "/api/setup") {
       if (req.method === "GET") return authApi.handleSetupStatus();
-      if (req.method === "POST") return authApi.handleSetup(req);
+      if (req.method === "POST") return authApi.handleSetup(req, ip);
       return new Response("Method Not Allowed", { status: 405 });
     }
     if (url.pathname === "/api/login" && req.method === "POST") {
-      return authApi.handleLogin(req);
+      return authApi.handleLogin(req, ip);
     }
     if (url.pathname === "/api/logout" && req.method === "POST") {
-      return authApi.handleLogout(req);
+      return authApi.handleLogout(req, ip);
     }
 
     if (url.pathname === "/config") {
@@ -70,6 +76,22 @@ export function createHandler(options: HandlerOptions = {}) {
   };
 }
 
+// The session cookie is always set with `Secure`, so a browser will never
+// send it back over plain HTTP — a silent HTTP fallback would make login
+// appear to succeed while every authenticated request after it quietly
+// fails. So plain HTTP is refused unless explicitly opted into (local dev
+// only, never production): this throws rather than degrading silently.
+export function resolveTlsMode(hasCert: boolean, allowHttpEnv: string | undefined): "https" | "http" {
+  if (hasCert) return "https";
+  if (allowHttpEnv === "1") return "http";
+  throw new Error(
+    "No TLS certificate found and AUNDEKIOSK_ALLOW_HTTP is not set to '1'. " +
+      "Refusing to start the dashboard over plain HTTP: the session cookie is " +
+      "Secure-only, so logins would silently fail. Run scripts/setup/generate-tls-cert.sh, " +
+      "or set AUNDEKIOSK_ALLOW_HTTP=1 for local development only.",
+  );
+}
+
 if (import.meta.main) {
   const port = Number(Deno.env.get("PORT") ?? "8080");
   const certPath = Deno.env.get("AUNDEKIOSK_TLS_CERT") ?? "/opt/aundekiosk/tls/cert.pem";
@@ -79,9 +101,10 @@ if (import.meta.main) {
   try {
     tls = { cert: await Deno.readTextFile(certPath), key: await Deno.readTextFile(keyPath) };
   } catch {
-    console.warn(`No TLS certificate found at ${certPath}; starting over plain HTTP (dev only).`);
+    tls = undefined;
   }
 
-  console.log(`AundeKiosk dashboard starting on port ${port}${tls ? " (HTTPS)" : " (HTTP)"}...`);
-  Deno.serve({ port, ...tls }, createHandler());
+  const mode = resolveTlsMode(tls !== undefined, Deno.env.get("AUNDEKIOSK_ALLOW_HTTP"));
+  console.log(`AundeKiosk dashboard starting on port ${port} (${mode.toUpperCase()})...`);
+  Deno.serve({ port, ...(mode === "https" ? tls : {}) }, createHandler());
 }
