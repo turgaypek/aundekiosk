@@ -5,3 +5,7 @@
 # action gets its own fixed line, added and reviewed individually.
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/restart-kiosk-services.sh
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/reboot-device.sh
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh.sh enable
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh.sh disable
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh-password-auth.sh enable
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh-password-auth.sh disable

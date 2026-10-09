@@ -12,6 +12,15 @@ assert_status 0 $? "sudoers file grants aundekiosk exactly the restart-kiosk-ser
 grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/reboot-device.sh$" "$SUDOERS_FILE"
 assert_status 0 $? "sudoers file grants aundekiosk exactly the reboot-device.sh line"
 
+for line in \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh.sh enable" \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh.sh disable" \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh-password-auth.sh enable" \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-ssh-password-auth.sh disable"; do
+  grep -qF "$line" "$SUDOERS_FILE"
+  assert_status 0 $? "sudoers file grants the exact line: $line"
+done
+
 grep -qE '\*|\$\{|\$\(' "$SUDOERS_FILE"
 if [[ $? -eq 0 ]]; then
   assert_eq "no-wildcards" "has-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
