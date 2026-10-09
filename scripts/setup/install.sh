@@ -15,7 +15,7 @@ msg "$SUCCESS" "Target user identified as '$PI_USER'."
 
 msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool unzip
+apt-get install -y jq chromium wtype xdotool openssl unzip
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 
 msg "$INFO" "Creating dedicated 'aundekiosk' system user for the dashboard..."
@@ -31,6 +31,9 @@ if [ ! -f "$AUNDEKIOSK_CONFIG_FILE" ]; then
     cp "$AUNDEKIOSK_INSTALL_DIR/config.json.sample" "$AUNDEKIOSK_CONFIG_FILE"
     msg "$DEBUG" "Created default config.json from sample."
 fi
+
+msg "$INFO" "Generating the self-signed TLS certificate (if one doesn't exist yet)..."
+bash "$AUNDEKIOSK_INSTALL_DIR/scripts/setup/generate-tls-cert.sh" "$AUNDEKIOSK_INSTALL_DIR/tls"
 
 msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it can write config.json; root reclaims 'privileged' so a dashboard-level bug can never rewrite a script sudo will run as root)..."
 chown -R aundekiosk:aundekiosk "$AUNDEKIOSK_INSTALL_DIR"
@@ -65,6 +68,6 @@ systemctl start aundekiosk-dashboard.service
 
 echo
 msg "$CALLOUT" "AundeKiosk is now installed."
-echo -e "Dashboard: ${SUCCESS}http://$(hostname -I | cut -d ' ' -f 1):8080/${RESET}"
-msg "$WARNING" "The dashboard has NO authentication yet (Plan 2 adds it). Do not expose it beyond a trusted, isolated network segment until Plan 2 is installed."
+echo -e "Dashboard: ${SUCCESS}https://$(hostname -I | cut -d ' ' -f 1):8080/${RESET}"
+msg "$WARNING" "The TLS certificate is self-signed — your browser will warn about it once; this is expected for a LAN-only kiosk tool."
 msg "$WARNING" "Kiosk mode will launch on the next startup."
