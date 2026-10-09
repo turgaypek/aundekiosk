@@ -9,6 +9,7 @@ import { createStepUpGuard } from "./auth/step_up.ts";
 import { createMonitorConfigApi } from "./monitor_config_api.ts";
 import { createSshApi } from "./ssh_api.ts";
 import { createOsPasswordApi } from "./os_password_api.ts";
+import { createNetworkApi } from "./network_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -86,6 +87,33 @@ export function createHandler(options: HandlerOptions = {}) {
       }
     },
   });
+  const networkApi = createNetworkApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    runPrivilegedApply: async (payload) => {
+      const command = new Deno.Command("sudo", {
+        args: ["/opt/aundekiosk/privileged/apply-network-config.sh"],
+        stdin: "piped",
+      });
+      const child = command.spawn();
+      const writer = child.stdin.getWriter();
+      await writer.write(new TextEncoder().encode(JSON.stringify(payload)));
+      await writer.close();
+      const { code, stderr } = await child.output();
+      if (code !== 0) {
+        throw new Error(`apply-network-config.sh failed: ${new TextDecoder().decode(stderr)}`);
+      }
+    },
+    runPrivilegedConfirm: async () => {
+      const command = new Deno.Command("sudo", { args: ["/opt/aundekiosk/privileged/confirm-network-config.sh"] });
+      const { code, stderr } = await command.output();
+      if (code !== 0) {
+        throw new Error(`confirm-network-config.sh failed: ${new TextDecoder().decode(stderr)}`);
+      }
+    },
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -140,6 +168,22 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return osPasswordApi.handleChange(req, session.username, ip);
+    }
+
+    if (url.pathname === "/network-config" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return networkApi.handleApply(req, session.username, ip);
+    }
+
+    if (url.pathname === "/network-confirm" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return networkApi.handleConfirm(req, session.username, ip);
     }
 
     return serveStatic(url.pathname);
