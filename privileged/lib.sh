@@ -57,3 +57,12 @@ is_valid_snmp_auth_protocol() {
 is_valid_snmp_priv_protocol() {
   [[ "$1" == "AES" ]]
 }
+
+# A secret that gets piped into another program's line-oriented
+# input/config (chpasswd's "user:pass" line, snmpd.conf's createUser
+# line) must never contain a newline or carriage return — otherwise it
+# smuggles a second line past every length/format check on the field
+# itself (final review: Critical C1/C3).
+is_safe_secret_value() {
+  [[ "$1" != *$'\n'* && "$1" != *$'\r'* ]]
+}

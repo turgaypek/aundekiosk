@@ -11,6 +11,7 @@ import { createSshApi } from "./ssh_api.ts";
 import { createOsPasswordApi } from "./os_password_api.ts";
 import { createNetworkApi } from "./network_api.ts";
 import { createSnmpApi } from "./snmp_api.ts";
+import { runPrivilegedCommand } from "./privileged_runner.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -60,11 +61,7 @@ export function createHandler(options: HandlerOptions = {}) {
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
     runPrivilegedToggle: async (action) => {
-      const command = new Deno.Command("sudo", { args: ["/opt/aundekiosk/privileged/toggle-ssh.sh", action] });
-      const { code, stderr } = await command.output();
-      if (code !== 0) {
-        throw new Error(`toggle-ssh.sh ${action} failed: ${new TextDecoder().decode(stderr)}`);
-      }
+      await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-ssh.sh", action]);
     },
   });
   const osPasswordApi = createOsPasswordApi({
@@ -73,19 +70,11 @@ export function createHandler(options: HandlerOptions = {}) {
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
     runPrivilegedChange: async (newPassword) => {
-      const piUser = Deno.env.get("AUNDEKIOSK_PI_USER") ?? "pi";
-      const command = new Deno.Command("sudo", {
-        args: ["/opt/aundekiosk/privileged/change-os-password.sh"],
-        stdin: "piped",
-      });
-      const child = command.spawn();
-      const writer = child.stdin.getWriter();
-      await writer.write(new TextEncoder().encode(JSON.stringify({ username: piUser, newPassword })));
-      await writer.close();
-      const { code, stderr } = await child.output();
-      if (code !== 0) {
-        throw new Error(`change-os-password.sh failed: ${new TextDecoder().decode(stderr)}`);
-      }
+      await runPrivilegedCommand(
+        "sudo",
+        ["/opt/aundekiosk/privileged/change-os-password.sh"],
+        JSON.stringify({ newPassword }),
+      );
     },
   });
   const networkApi = createNetworkApi({
@@ -94,25 +83,14 @@ export function createHandler(options: HandlerOptions = {}) {
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
     runPrivilegedApply: async (payload) => {
-      const command = new Deno.Command("sudo", {
-        args: ["/opt/aundekiosk/privileged/apply-network-config.sh"],
-        stdin: "piped",
-      });
-      const child = command.spawn();
-      const writer = child.stdin.getWriter();
-      await writer.write(new TextEncoder().encode(JSON.stringify(payload)));
-      await writer.close();
-      const { code, stderr } = await child.output();
-      if (code !== 0) {
-        throw new Error(`apply-network-config.sh failed: ${new TextDecoder().decode(stderr)}`);
-      }
+      await runPrivilegedCommand(
+        "sudo",
+        ["/opt/aundekiosk/privileged/apply-network-config.sh"],
+        JSON.stringify(payload),
+      );
     },
     runPrivilegedConfirm: async () => {
-      const command = new Deno.Command("sudo", { args: ["/opt/aundekiosk/privileged/confirm-network-config.sh"] });
-      const { code, stderr } = await command.output();
-      if (code !== 0) {
-        throw new Error(`confirm-network-config.sh failed: ${new TextDecoder().decode(stderr)}`);
-      }
+      await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/confirm-network-config.sh"]);
     },
   });
   const snmpApi = createSnmpApi({
@@ -121,18 +99,11 @@ export function createHandler(options: HandlerOptions = {}) {
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
     runPrivilegedConfigure: async (payload) => {
-      const command = new Deno.Command("sudo", {
-        args: ["/opt/aundekiosk/privileged/configure-snmp.sh"],
-        stdin: "piped",
-      });
-      const child = command.spawn();
-      const writer = child.stdin.getWriter();
-      await writer.write(new TextEncoder().encode(JSON.stringify(payload)));
-      await writer.close();
-      const { code, stderr } = await child.output();
-      if (code !== 0) {
-        throw new Error(`configure-snmp.sh failed: ${new TextDecoder().decode(stderr)}`);
-      }
+      await runPrivilegedCommand(
+        "sudo",
+        ["/opt/aundekiosk/privileged/configure-snmp.sh"],
+        JSON.stringify(payload),
+      );
     },
   });
 

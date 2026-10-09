@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/deno run --cached-only --lock=/opt/aundekiosk/dashboard/deno.lock --allow-net=0.0.0.0:8080 --allow-read=/opt/aundekiosk --allow-write=/opt/aundekiosk --allow-env=PORT,AUNDEKIOSK_CONFIG_FILE,AUNDEKIOSK_AUTH_STORE_FILE,AUNDEKIOSK_AUDIT_LOG_FILE,AUNDEKIOSK_TLS_CERT,AUNDEKIOSK_TLS_KEY /opt/aundekiosk/dashboard/server.ts
+ExecStart=/usr/local/bin/deno run --cached-only --lock=/opt/aundekiosk/dashboard/deno.lock --allow-net=0.0.0.0:8080 --allow-read=/opt/aundekiosk --allow-write=/opt/aundekiosk --allow-run=sudo --allow-env=PORT,AUNDEKIOSK_CONFIG_FILE,AUNDEKIOSK_AUTH_STORE_FILE,AUNDEKIOSK_AUDIT_LOG_FILE,AUNDEKIOSK_TLS_CERT,AUNDEKIOSK_TLS_KEY /opt/aundekiosk/dashboard/server.ts
 WorkingDirectory=/opt/aundekiosk
 Environment=PORT=8080
 Environment=DENO_DIR=/opt/aundekiosk/.deno

@@ -55,4 +55,14 @@ done
 grep -q "^User=aundekiosk$" "$SERVICES_DIR/aundekiosk-monitor.service.template"
 assert_status 0 $? "aundekiosk-monitor.service.template runs as the unprivileged aundekiosk user"
 
+# Final review (Critical C4a): every SSH/network/SNMP endpoint shells out
+# to "sudo <privileged helper>". Without --allow-run=sudo, Deno's
+# permission model refuses to spawn it at all (NotCapable), so all five
+# Plan 4 endpoints would fail in production even though their mocked unit
+# tests pass.
+case "$DASHBOARD_UNIT_CONTENT" in
+  *"--allow-run=sudo"*) assert_eq "has-allow-run" "has-allow-run" "aundekiosk-dashboard.service.template grants --allow-run=sudo so privileged helpers can actually be invoked" ;;
+  *) assert_eq "has-allow-run" "missing" "aundekiosk-dashboard.service.template grants --allow-run=sudo so privileged helpers can actually be invoked" ;;
+esac
+
 assert_summary

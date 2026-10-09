@@ -142,4 +142,29 @@ else
   assert_eq "invalid" "invalid" "is_valid_snmp_priv_protocol rejects DES (not in the allowed set)"
 fi
 
+
+# --- is_safe_secret_value ---
+# Final review (Critical C1, C3): a secret with an embedded newline, piped
+# into `chpasswd` or written into snmpd's config file, is interpreted as a
+# SECOND line — letting an attacker who can submit one validated secret
+# field smuggle a second `user:password` pair or a second config directive
+# past every other check. Every secret value that gets written into
+# another program's line-oriented config/input must be rejected if it
+# contains a newline or carriage return.
+if is_safe_secret_value "a-normal-password"; then
+  assert_eq "valid" "valid" "is_safe_secret_value accepts a normal password"
+else
+  assert_eq "valid" "invalid" "is_safe_secret_value accepts a normal password"
+fi
+if is_safe_secret_value $'line-one\nline-two'; then
+  assert_eq "invalid" "valid" "is_safe_secret_value rejects an embedded newline"
+else
+  assert_eq "invalid" "invalid" "is_safe_secret_value rejects an embedded newline"
+fi
+if is_safe_secret_value $'line-one\rline-two'; then
+  assert_eq "invalid" "valid" "is_safe_secret_value rejects an embedded carriage return"
+else
+  assert_eq "invalid" "invalid" "is_safe_secret_value rejects an embedded carriage return"
+fi
+
 assert_summary
