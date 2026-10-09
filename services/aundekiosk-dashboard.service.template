@@ -1,0 +1,14 @@
+[Unit]
+Description=Run AundeKiosk dashboard
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/deno run --allow-net --allow-read --allow-write --allow-env /opt/aundekiosk/dashboard/server.ts
+WorkingDirectory=/opt/aundekiosk
+Environment=PORT=8080
+User=aundekiosk
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
