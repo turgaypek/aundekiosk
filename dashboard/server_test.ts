@@ -160,3 +160,56 @@ Deno.test("resolveTlsMode refuses to fall back to http by default when no certif
 Deno.test("resolveTlsMode allows http only with an explicit opt-in", () => {
   assertEquals(resolveTlsMode(false, "1"), "http");
 });
+
+Deno.test("GET /monitor-config without a session returns 401, never the tier data", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+      monitorConfigPath: `${dir}/monitor-config.json`,
+      monitorSamplePath: `${dir}/monitor-config.json.sample`,
+    });
+    const res = await handle(new Request("http://localhost/monitor-config"));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("GET /monitor-config with a valid session returns the tier data", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    await Deno.writeTextFile(`${dir}/monitor-config.json.sample`, JSON.stringify({ sampleIntervalSeconds: 10, activeWindow: null, tiers: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+      monitorConfigPath: `${dir}/monitor-config.json`,
+      monitorSamplePath: `${dir}/monitor-config.json.sample`,
+    });
+
+    await handle(
+      new Request("http://localhost/api/setup", {
+        method: "POST",
+        body: JSON.stringify({ username: "admin", password: "a-long-enough-password" }),
+      }),
+    );
+    const loginRes = await handle(
+      new Request("http://localhost/api/login", {
+        method: "POST",
+        body: JSON.stringify({ username: "admin", password: "a-long-enough-password" }),
+      }),
+    );
+    const cookiePair = (loginRes.headers.get("Set-Cookie") ?? "").split(";")[0];
+
+    const res = await handle(new Request("http://localhost/monitor-config", { headers: { Cookie: cookiePair } }));
+    assertEquals(res.status, 200);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

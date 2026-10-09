@@ -5,6 +5,7 @@ import { createSessionStore } from "./auth/session_store.ts";
 import { createRateLimiter } from "./auth/rate_limiter.ts";
 import { createAuditLog } from "./auth/audit_log.ts";
 import { createAuthApi } from "./auth/auth_api.ts";
+import { createMonitorConfigApi } from "./monitor_config_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -14,6 +15,8 @@ const DEFAULT_CONFIG_PATH = "/opt/aundekiosk/config.json";
 const DEFAULT_SAMPLE_PATH = `${import.meta.dirname}/../config.json.sample`;
 const DEFAULT_AUTH_STORE_PATH = "/opt/aundekiosk/auth.db";
 const DEFAULT_AUDIT_LOG_PATH = "/opt/aundekiosk/audit.log";
+const DEFAULT_MONITOR_CONFIG_PATH = "/opt/aundekiosk/monitor-config.json";
+const DEFAULT_MONITOR_SAMPLE_PATH = `${import.meta.dirname}/../monitor-config.json.sample`;
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const LOGIN_RATE_LIMIT = { maxAttempts: 10, windowMs: 60_000 };
@@ -24,6 +27,8 @@ export interface HandlerOptions {
   publicDir?: string;
   authStorePath?: string;
   auditLogPath?: string;
+  monitorConfigPath?: string;
+  monitorSamplePath?: string;
 }
 
 export function createHandler(options: HandlerOptions = {}) {
@@ -32,9 +37,12 @@ export function createHandler(options: HandlerOptions = {}) {
   const samplePath = options.samplePath ?? DEFAULT_SAMPLE_PATH;
   const authStorePath = options.authStorePath ?? Deno.env.get("AUNDEKIOSK_AUTH_STORE_FILE") ?? DEFAULT_AUTH_STORE_PATH;
   const auditLogPath = options.auditLogPath ?? Deno.env.get("AUNDEKIOSK_AUDIT_LOG_FILE") ?? DEFAULT_AUDIT_LOG_PATH;
+  const monitorConfigPath = options.monitorConfigPath ?? Deno.env.get("AUNDEKIOSK_MONITOR_CONFIG_FILE") ?? DEFAULT_MONITOR_CONFIG_PATH;
+  const monitorSamplePath = options.monitorSamplePath ?? DEFAULT_MONITOR_SAMPLE_PATH;
 
   const serveStatic = createStaticHandler(publicDir);
   const configApi = createConfigApi({ configPath, samplePath });
+  const monitorConfigApi = createMonitorConfigApi({ configPath: monitorConfigPath, samplePath: monitorSamplePath });
   const authApi = createAuthApi({
     credentialStore: createCredentialStore({ storePath: authStorePath }),
     sessionStore: createSessionStore({ idleTimeoutMs: IDLE_TIMEOUT_MS }),
@@ -69,6 +77,15 @@ export function createHandler(options: HandlerOptions = {}) {
       }
       if (req.method === "GET") return configApi.handleGet();
       if (req.method === "POST") return configApi.handlePost(req);
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    if (url.pathname === "/monitor-config") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      if (req.method === "GET") return monitorConfigApi.handleGet();
+      if (req.method === "POST") return monitorConfigApi.handlePost(req);
       return new Response("Method Not Allowed", { status: 405 });
     }
 
