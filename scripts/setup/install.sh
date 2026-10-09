@@ -24,12 +24,19 @@ if ! id -u aundekiosk >/dev/null 2>&1; then
 fi
 
 msg "$INFO" "Making runtime and privileged scripts executable..."
-chmod +x "$AUNDEKIOSK_INSTALL_DIR"/runtime/*.sh "$AUNDEKIOSK_INSTALL_DIR"/privileged/*.sh
+chmod +x "$AUNDEKIOSK_INSTALL_DIR"/runtime/*.sh "$AUNDEKIOSK_INSTALL_DIR"/privileged/*.sh "$AUNDEKIOSK_INSTALL_DIR"/monitor/*.sh
 
 msg "$INFO" "Setting up configuration file..."
 if [ ! -f "$AUNDEKIOSK_CONFIG_FILE" ]; then
     cp "$AUNDEKIOSK_INSTALL_DIR/config.json.sample" "$AUNDEKIOSK_CONFIG_FILE"
     msg "$DEBUG" "Created default config.json from sample."
+fi
+
+msg "$INFO" "Setting up resource monitor configuration..."
+AUNDEKIOSK_MONITOR_CONFIG_FILE="$AUNDEKIOSK_INSTALL_DIR/monitor-config.json"
+if [ ! -f "$AUNDEKIOSK_MONITOR_CONFIG_FILE" ]; then
+    cp "$AUNDEKIOSK_INSTALL_DIR/monitor-config.json.sample" "$AUNDEKIOSK_MONITOR_CONFIG_FILE"
+    msg "$DEBUG" "Created default monitor-config.json from sample."
 fi
 
 msg "$INFO" "Generating the self-signed TLS certificate (if one doesn't exist yet)..."
@@ -70,11 +77,12 @@ sed -e "s|PI_HOME|$PI_HOME|g" -e "s|PI_SUID|$PI_SUID|g" -e "s|PI_USER|$PI_USER|g
     "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-switcher.service.template" > /etc/systemd/system/aundekiosk-switcher.service
 
 cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-dashboard.service.template" /etc/systemd/system/aundekiosk-dashboard.service
+cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-monitor.service.template" /etc/systemd/system/aundekiosk-monitor.service
 
 msg "$INFO" "Reloading systemd and enabling services..."
 systemctl daemon-reload
-systemctl enable aundekiosk-runner.service aundekiosk-switcher.service aundekiosk-dashboard.service
-systemctl start aundekiosk-dashboard.service
+systemctl enable aundekiosk-runner.service aundekiosk-switcher.service aundekiosk-dashboard.service aundekiosk-monitor.service
+systemctl start aundekiosk-dashboard.service aundekiosk-monitor.service
 
 echo
 msg "$CALLOUT" "AundeKiosk is now installed."
