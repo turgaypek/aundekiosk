@@ -6,7 +6,7 @@ source "$SCRIPT_DIR/common.sh"
 
 msg "$INFO" "Starting AundeKiosk installation..."
 
-PI_USER="${1:-$SUDO_USER}"
+PI_USER="${1:-${SUDO_USER:-}}"
 if [ -z "$PI_USER" ]; then
     msg "$ERROR" "Could not determine target user. Ensure SUDO_USER is set."
     exit 1
@@ -31,7 +31,11 @@ if [ ! -f "$AUNDEKIOSK_CONFIG_FILE" ]; then
     cp "$AUNDEKIOSK_INSTALL_DIR/config.json.sample" "$AUNDEKIOSK_CONFIG_FILE"
     msg "$DEBUG" "Created default config.json from sample."
 fi
-chown aundekiosk:aundekiosk "$AUNDEKIOSK_CONFIG_FILE"
+
+msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it can write config.json; root reclaims 'privileged' so a dashboard-level bug can never rewrite a script sudo will run as root)..."
+chown -R aundekiosk:aundekiosk "$AUNDEKIOSK_INSTALL_DIR"
+chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/privileged"
+chmod -R go-w "$AUNDEKIOSK_INSTALL_DIR/privileged"
 
 msg "$INFO" "Installing the privileged helper whitelist (sudoers)..."
 SUDOERS_SRC="$AUNDEKIOSK_INSTALL_DIR/privileged/sudoers.d/aundekiosk"

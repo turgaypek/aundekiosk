@@ -43,25 +43,36 @@ detect_ram_mb() {
   echo $(( kb / 1024 ))
 }
 
+# Every jq call below pipes through `tr -d '\r'`: on at least one platform
+# (jq.exe on Windows) `jq -r` emits CRLF line endings, which otherwise
+# leaves a trailing \r on every line `mapfile` reads — invisible in
+# terminal output but breaking exact string/number comparisons downstream.
+# A no-op on Linux, where jq already emits plain \n.
+
+# One URL per output line (like extract_durations_from_config /
+# extract_cycles_from_config), so callers read it with `mapfile` into a
+# real array instead of a space-joined string — a single string would
+# have to be word-split to launch chromium, which lets a URL containing
+# a space or a leading "--" inject extra argv entries.
 extract_urls_from_config() {
   local config_file="$1"
-  jq -r '.urls | map(.url) | join(" ")' "$config_file"
+  jq -r '.urls[].url' "$config_file" | tr -d '\r'
 }
 
 extract_durations_from_config() {
   local config_file="$1"
-  jq -r '.urls[].duration' "$config_file"
+  jq -r '.urls[].duration' "$config_file" | tr -d '\r'
 }
 
 extract_cycles_from_config() {
   local config_file="$1"
-  jq -r '.urls[].cycles' "$config_file"
+  jq -r '.urls[].cycles' "$config_file" | tr -d '\r'
 }
 
 has_urls() {
   local config_file="$1"
   local count
-  count=$(jq -r '.urls | length' "$config_file")
+  count=$(jq -r '.urls | length' "$config_file" | tr -d '\r')
   [[ "$count" -gt 0 ]]
 }
 

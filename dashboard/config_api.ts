@@ -4,6 +4,19 @@ interface KioskUrlEntry {
   cycles: number;
 }
 
+// Only http/https parse successfully here with an allowed protocol, so this
+// also rejects "javascript:", "file:", and anything with a syntax error —
+// including a value like "https://ok.test --proxy-server=evil.test:8080",
+// where the space immediately after the host breaks URL parsing outright.
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function isValidConfigShape(value: unknown): value is { urls: KioskUrlEntry[] } {
   if (typeof value !== "object" || value === null) return false;
   const obj = value as Record<string, unknown>;
@@ -13,11 +26,15 @@ function isValidConfigShape(value: unknown): value is { urls: KioskUrlEntry[] } 
     const e = entry as Record<string, unknown>;
     return (
       typeof e.url === "string" &&
-      e.url.length > 0 &&
+      isValidHttpUrl(e.url.trim()) &&
       typeof e.duration === "number" &&
-      Number.isFinite(e.duration) &&
+      Number.isInteger(e.duration) &&
+      e.duration >= 1 &&
+      e.duration <= 300 &&
       typeof e.cycles === "number" &&
-      Number.isFinite(e.cycles)
+      Number.isInteger(e.cycles) &&
+      e.cycles >= 0 &&
+      e.cycles <= 100
     );
   });
 }
@@ -56,12 +73,27 @@ export function createConfigApi(opts: ConfigApiOptions) {
 
     if (!isValidConfigShape(parsed)) {
       return new Response(
-        "Invalid config shape: expected { urls: [{ url, duration, cycles }] }.",
+        "Invalid config shape: expected { urls: [{ url (http/https), duration (1-300), cycles (0-100) }] }.",
         { status: 400 },
       );
     }
 
-    await Deno.writeTextFile(configPath, JSON.stringify(parsed, null, 2));
+    // Drop any unexpected extra fields and trim whitespace around each URL,
+    // so only the known, validated shape ever reaches disk.
+    const normalized = {
+      urls: parsed.urls.map((entry) => ({
+        url: entry.url.trim(),
+        duration: entry.duration,
+        cycles: entry.cycles,
+      })),
+    };
+
+    // Write-then-rename so a power loss or crash mid-write can never leave
+    // config.json truncated or empty — the rename is atomic on the same
+    // filesystem, so readers always see either the old or the new content.
+    const tmpPath = `${configPath}.tmp-${crypto.randomUUID()}`;
+    await Deno.writeTextFile(tmpPath, JSON.stringify(normalized, null, 2));
+    await Deno.rename(tmpPath, configPath);
     return new Response("Config saved.", { status: 200 });
   }
 

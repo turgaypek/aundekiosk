@@ -56,8 +56,10 @@ cat > "$FIXTURES/config_two_urls.json" <<'EOF'
   ]
 }
 EOF
-result=$(extract_urls_from_config "$FIXTURES/config_two_urls.json")
-assert_eq "https://example.com https://example.org" "$result" "extract_urls_from_config joins URLs with a space"
+mapfile -t url_array < <(extract_urls_from_config "$FIXTURES/config_two_urls.json")
+assert_eq "2" "${#url_array[@]}" "extract_urls_from_config yields one array element per URL"
+assert_eq "https://example.com" "${url_array[0]}" "extract_urls_from_config preserves the first URL as its own element"
+assert_eq "https://example.org" "${url_array[1]}" "extract_urls_from_config preserves the second URL as its own element"
 
 if has_urls "$FIXTURES/config_two_urls.json"; then
   assert_eq "yes" "yes" "has_urls returns true when config has URLs"

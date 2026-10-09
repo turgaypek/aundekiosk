@@ -9,7 +9,9 @@ for t in \
   "$SCRIPT_DIR/runtime/runner_test.sh" \
   "$SCRIPT_DIR/runtime/switcher_test.sh" \
   "$SCRIPT_DIR/privileged/restart_kiosk_services_test.sh" \
-  "$SCRIPT_DIR/privileged/sudoers_test.sh"; do
+  "$SCRIPT_DIR/privileged/sudoers_test.sh" \
+  "$SCRIPT_DIR/services/templates_test.sh" \
+  "$SCRIPT_DIR/setup/install_test.sh"; do
   echo "=== $t ==="
   bash "$t" || FAIL=1
   echo ""

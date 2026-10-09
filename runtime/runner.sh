@@ -18,11 +18,13 @@ if ! has_urls "$CONFIG_FILE"; then
   exit 0
 fi
 
-URLS=$(extract_urls_from_config "$CONFIG_FILE")
+mapfile -t URLS < <(extract_urls_from_config "$CONFIG_FILE")
 
-# shellcheck disable=SC2086
+# Every URL is passed as its own array element (never interpolated into a
+# plain string) so none of them is word-split or glob-expanded, and "--"
+# marks the end of chromium's own switches so a URL value can never be
+# parsed as a flag even if one somehow began with "--".
 exec chromium \
-  $URLS \
   --disable-component-update \
   --disable-composited-antialiasing \
   --disable-gpu-driver-bug-workarounds \
@@ -38,4 +40,6 @@ exec chromium \
   --ignore-gpu-blocklist \
   --kiosk \
   --no-first-run \
-  --noerrdialogs
+  --noerrdialogs \
+  -- \
+  "${URLS[@]}"

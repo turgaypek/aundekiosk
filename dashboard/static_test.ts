@@ -47,7 +47,14 @@ Deno.test("blocks path traversal attempts outside the public dir", async () => {
     await Deno.writeTextFile(secretPath, "top secret");
     try {
       const handle = createStaticHandler(dir);
-      const res = await handle("/../" + secretPath.split("/").pop());
+      // secretPath is a native OS path (backslash-separated on Windows), so
+      // split on "/" alone would silently fail to find the basename there
+      // and this test would 404 for the wrong reason (file not found,
+      // never reaching the containment check at all). Split on either
+      // separator so the test exercises the real containment logic on
+      // every OS.
+      const secretName = secretPath.split(/[\\/]/).pop();
+      const res = await handle("/../" + secretName);
       assertEquals(res.status, 404);
     } finally {
       await Deno.remove(secretPath);

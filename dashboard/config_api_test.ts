@@ -77,3 +77,105 @@ Deno.test("POST with valid JSON but wrong shape returns 400 and leaves existing 
     assertEquals(await Deno.readTextFile(configPath), original);
   });
 });
+
+Deno.test("POST rejects a non-http(s) URL (e.g. javascript:) and leaves existing config untouched", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const original = JSON.stringify({ urls: [{ url: "https://keep.test", duration: 5, cycles: 1 }] });
+    await Deno.writeTextFile(configPath, original);
+    const api = createConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    const req = new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({ urls: [{ url: "javascript:alert(1)", duration: 5, cycles: 1 }] }),
+    });
+    const res = await api.handlePost(req);
+    assertEquals(res.status, 400);
+    assertEquals(await Deno.readTextFile(configPath), original);
+  });
+});
+
+Deno.test("POST rejects a URL whose extra text would be word-split into separate Chromium arguments, and leaves existing config untouched", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const original = JSON.stringify({ urls: [{ url: "https://keep.test", duration: 5, cycles: 1 }] });
+    await Deno.writeTextFile(configPath, original);
+    const api = createConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    const req = new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({
+        urls: [{ url: "https://ok.test --proxy-server=evil.test:8080", duration: 5, cycles: 1 }],
+      }),
+    });
+    const res = await api.handlePost(req);
+    assertEquals(res.status, 400);
+    assertEquals(await Deno.readTextFile(configPath), original);
+  });
+});
+
+Deno.test("POST rejects a non-integer or out-of-range duration and leaves existing config untouched", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const original = JSON.stringify({ urls: [{ url: "https://keep.test", duration: 5, cycles: 1 }] });
+    await Deno.writeTextFile(configPath, original);
+    const api = createConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+
+    for (const duration of [0, -3, 1.5, 301]) {
+      const req = new Request("http://localhost/config", {
+        method: "POST",
+        body: JSON.stringify({ urls: [{ url: "https://a.test", duration, cycles: 1 }] }),
+      });
+      const res = await api.handlePost(req);
+      assertEquals(res.status, 400, `duration ${duration} should be rejected`);
+    }
+    assertEquals(await Deno.readTextFile(configPath), original);
+  });
+});
+
+Deno.test("POST rejects a non-integer or out-of-range cycles value and leaves existing config untouched", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const original = JSON.stringify({ urls: [{ url: "https://keep.test", duration: 5, cycles: 1 }] });
+    await Deno.writeTextFile(configPath, original);
+    const api = createConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+
+    for (const cycles of [-1, 1.5, 101]) {
+      const req = new Request("http://localhost/config", {
+        method: "POST",
+        body: JSON.stringify({ urls: [{ url: "https://a.test", duration: 5, cycles }] }),
+      });
+      const res = await api.handlePost(req);
+      assertEquals(res.status, 400, `cycles ${cycles} should be rejected`);
+    }
+    assertEquals(await Deno.readTextFile(configPath), original);
+  });
+});
+
+Deno.test("POST trims surrounding whitespace from a URL before saving", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const api = createConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    const req = new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({ urls: [{ url: "  https://trim.test  ", duration: 5, cycles: 1 }] }),
+    });
+    const res = await api.handlePost(req);
+    assertEquals(res.status, 200);
+    const saved = JSON.parse(await Deno.readTextFile(configPath));
+    assertEquals(saved.urls[0].url, "https://trim.test");
+  });
+});
+
+Deno.test("POST does not leave a stray temp file behind after a successful save", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const api = createConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    const req = new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({ urls: [{ url: "https://b.test", duration: 10, cycles: 0 }] }),
+    });
+    await api.handlePost(req);
+    const entries: string[] = [];
+    for await (const entry of Deno.readDir(dir)) entries.push(entry.name);
+    assertEquals(JSON.stringify(entries), JSON.stringify(["config.json"]));
+  });
+});
