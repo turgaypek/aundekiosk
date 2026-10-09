@@ -5,6 +5,8 @@ import { createRateLimiter } from "./rate_limiter.ts";
 import { createAuditLog } from "./audit_log.ts";
 import { assertEquals } from "../test_util.ts";
 
+const TEST_IP = "203.0.113.5";
+
 async function withApi(
   fn: (api: ReturnType<typeof createAuthApi>, dir: string) => Promise<void>,
 ) {
@@ -22,11 +24,11 @@ async function withApi(
   }
 }
 
-function jsonRequest(url: string, body: unknown, headers: Record<string, string> = {}) {
+function jsonRequest(url: string, body: unknown) {
   return new Request(url, {
     method: "POST",
     body: JSON.stringify(body),
-    headers: { "Content-Type": "application/json", ...headers },
+    headers: { "Content-Type": "application/json" },
   });
 }
 
@@ -41,6 +43,7 @@ Deno.test("handleSetup creates the admin and handleSetupStatus then reports hasA
   await withApi(async (api) => {
     const res = await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     assertEquals(res.status, 201);
     const status = await api.handleSetupStatus();
@@ -52,11 +55,24 @@ Deno.test("handleSetup refuses a second admin once one exists", async () => {
   await withApi(async (api) => {
     await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const res = await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "someone-else", password: "another-password" }),
+      TEST_IP,
     );
     assertEquals(res.status, 409);
+  });
+});
+
+Deno.test("concurrent handleSetup calls: exactly one 201, the other 409 (never a 500 from the race)", async () => {
+  await withApi(async (api) => {
+    const [a, b] = await Promise.all([
+      api.handleSetup(jsonRequest("http://localhost/api/setup", { username: "first", password: "a-long-enough-password" }), TEST_IP),
+      api.handleSetup(jsonRequest("http://localhost/api/setup", { username: "second", password: "another-long-password" }), TEST_IP),
+    ]);
+    const statuses = [a.status, b.status].sort();
+    assertEquals(JSON.stringify(statuses), JSON.stringify([201, 409]));
   });
 });
 
@@ -64,8 +80,27 @@ Deno.test("handleSetup rejects a short password", async () => {
   await withApi(async (api) => {
     const res = await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "short" }),
+      TEST_IP,
     );
     assertEquals(res.status, 400);
+  });
+});
+
+Deno.test("handleSetup rejects an overly long username or password", async () => {
+  await withApi(async (api) => {
+    const longUsername = "a".repeat(65);
+    const res1 = await api.handleSetup(
+      jsonRequest("http://localhost/api/setup", { username: longUsername, password: "a-long-enough-password" }),
+      TEST_IP,
+    );
+    assertEquals(res1.status, 400);
+
+    const longPassword = "a".repeat(1025);
+    const res2 = await api.handleSetup(
+      jsonRequest("http://localhost/api/setup", { username: "admin", password: longPassword }),
+      TEST_IP,
+    );
+    assertEquals(res2.status, 400);
   });
 });
 
@@ -73,9 +108,11 @@ Deno.test("handleLogin with the right credentials returns 200 and sets a session
   await withApi(async (api) => {
     await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const res = await api.handleLogin(
       jsonRequest("http://localhost/api/login", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     assertEquals(res.status, 200);
     const setCookie = res.headers.get("Set-Cookie") ?? "";
@@ -89,12 +126,28 @@ Deno.test("handleLogin with the wrong password returns 401 and sets no cookie", 
   await withApi(async (api) => {
     await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const res = await api.handleLogin(
       jsonRequest("http://localhost/api/login", { username: "admin", password: "wrong" }),
+      TEST_IP,
     );
     assertEquals(res.status, 401);
     assertEquals(res.headers.get("Set-Cookie"), null);
+  });
+});
+
+Deno.test("handleLogin rejects an overly long username or password without touching the credential store", async () => {
+  await withApi(async (api) => {
+    await api.handleSetup(
+      jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
+    );
+    const res = await api.handleLogin(
+      jsonRequest("http://localhost/api/login", { username: "a".repeat(65), password: "a-long-enough-password" }),
+      TEST_IP,
+    );
+    assertEquals(res.status, 400);
   });
 });
 
@@ -102,14 +155,33 @@ Deno.test("5 failed logins lock the account; the 6th attempt is rejected (423) e
   await withApi(async (api) => {
     await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     for (let i = 0; i < 5; i++) {
-      await api.handleLogin(jsonRequest("http://localhost/api/login", { username: "admin", password: "wrong" }));
+      await api.handleLogin(jsonRequest("http://localhost/api/login", { username: "admin", password: "wrong" }), TEST_IP);
     }
     const res = await api.handleLogin(
       jsonRequest("http://localhost/api/login", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     assertEquals(res.status, 423);
+  });
+});
+
+Deno.test("the attempt that triggers the lockout is itself recorded as account_locked in the audit log", async () => {
+  await withApi(async (api, dir) => {
+    await api.handleSetup(
+      jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
+    );
+    for (let i = 0; i < 5; i++) {
+      await api.handleLogin(jsonRequest("http://localhost/api/login", { username: "admin", password: "wrong" }), TEST_IP);
+    }
+    const lines = (await Deno.readTextFile(`${dir}/audit.log`)).trim().split("\n").map((l) => JSON.parse(l));
+    const events = lines.map((l: Record<string, unknown>) => l.event);
+    assertEquals(events.includes("account_locked"), true);
+    // Exactly once: the 5th failure crosses the threshold, the earlier four don't.
+    assertEquals(events.filter((e) => e === "account_locked").length, 1);
   });
 });
 
@@ -117,12 +189,14 @@ Deno.test("requireSession returns null without a cookie, and the username with a
   await withApi(async (api) => {
     await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const noSessionReq = new Request("http://localhost/config");
     assertEquals(api.requireSession(noSessionReq), null);
 
     const loginRes = await api.handleLogin(
       jsonRequest("http://localhost/api/login", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const setCookie = loginRes.headers.get("Set-Cookie") ?? "";
     const cookiePair = setCookie.split(";")[0];
@@ -135,32 +209,40 @@ Deno.test("handleLogout clears the session so the same cookie no longer authenti
   await withApi(async (api) => {
     await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const loginRes = await api.handleLogin(
       jsonRequest("http://localhost/api/login", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const cookiePair = (loginRes.headers.get("Set-Cookie") ?? "").split(";")[0];
 
-    await api.handleLogout(new Request("http://localhost/api/logout", { method: "POST", headers: { Cookie: cookiePair } }));
+    await api.handleLogout(
+      new Request("http://localhost/api/logout", { method: "POST", headers: { Cookie: cookiePair } }),
+      TEST_IP,
+    );
 
     const reusedReq = new Request("http://localhost/config", { headers: { Cookie: cookiePair } });
     assertEquals(api.requireSession(reusedReq), null);
   });
 });
 
-Deno.test("every login success, failure, lockout, and logout is recorded in the audit log in English with a timestamp and IP", async () => {
+Deno.test("every login success, failure, lockout, and logout is recorded in the audit log in English with a timestamp and the caller-supplied IP", async () => {
   await withApi(async (api, dir) => {
     await api.handleSetup(
       jsonRequest("http://localhost/api/setup", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
-    await api.handleLogin(
-      jsonRequest("http://localhost/api/login", { username: "admin", password: "wrong" }, { "x-forwarded-for": "203.0.113.1" }),
-    );
+    await api.handleLogin(jsonRequest("http://localhost/api/login", { username: "admin", password: "wrong" }), TEST_IP);
     const loginRes = await api.handleLogin(
-      jsonRequest("http://localhost/api/login", { username: "admin", password: "a-long-enough-password" }, { "x-forwarded-for": "203.0.113.1" }),
+      jsonRequest("http://localhost/api/login", { username: "admin", password: "a-long-enough-password" }),
+      TEST_IP,
     );
     const cookiePair = (loginRes.headers.get("Set-Cookie") ?? "").split(";")[0];
-    await api.handleLogout(new Request("http://localhost/api/logout", { method: "POST", headers: { Cookie: cookiePair } }));
+    await api.handleLogout(
+      new Request("http://localhost/api/logout", { method: "POST", headers: { Cookie: cookiePair } }),
+      TEST_IP,
+    );
 
     const lines = (await Deno.readTextFile(`${dir}/audit.log`)).trim().split("\n").map((l) => JSON.parse(l));
     const events = lines.map((l: Record<string, unknown>) => l.event);
@@ -171,6 +253,6 @@ Deno.test("every login success, failure, lockout, and logout is recorded in the 
       assertEquals(typeof line.timestamp, "string");
     }
     const failedLine = lines.find((l: Record<string, unknown>) => l.event === "login_failed");
-    assertEquals(failedLine.ip, "203.0.113.1");
+    assertEquals(failedLine.ip, TEST_IP);
   });
 });

@@ -12,13 +12,11 @@ export interface AuthApiOptions {
 
 const SESSION_COOKIE = "aundekiosk_session";
 const MIN_PASSWORD_LENGTH = 12;
+const MAX_USERNAME_LENGTH = 64;
+const MAX_PASSWORD_LENGTH = 1024;
 
 export function createAuthApi(opts: AuthApiOptions) {
   const { credentialStore, sessionStore, rateLimiter, auditLog } = opts;
-
-  function clientIp(req: Request): string {
-    return req.headers.get("x-forwarded-for") ?? "unknown";
-  }
 
   function sessionCookieHeader(token: string): string {
     return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Secure; Path=/`;
@@ -38,11 +36,33 @@ export function createAuthApi(opts: AuthApiOptions) {
     return null;
   }
 
+  // Validates and trims the two credential fields every endpoint below
+  // accepts. Rejecting an oversized value here means an attacker can't
+  // force a multi-megabyte argon2 hash or a multi-megabyte audit log line.
+  function readCredentials(
+    body: Record<string, unknown>,
+  ): { username: string; password: string } | { error: string } {
+    const { username, password } = body;
+    if (typeof username !== "string" || username.trim().length === 0) {
+      return { error: "Username is required." };
+    }
+    if (username.length > MAX_USERNAME_LENGTH) {
+      return { error: `Username must be at most ${MAX_USERNAME_LENGTH} characters.` };
+    }
+    if (typeof password !== "string" || password.length === 0) {
+      return { error: "Password is required." };
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return { error: `Password must be at most ${MAX_PASSWORD_LENGTH} characters.` };
+    }
+    return { username: username.trim(), password };
+  }
+
   async function handleSetupStatus(): Promise<Response> {
     return Response.json({ hasAdmin: await credentialStore.hasAdmin() });
   }
 
-  async function handleSetup(req: Request): Promise<Response> {
+  async function handleSetup(req: Request, ip: string): Promise<Response> {
     if (await credentialStore.hasAdmin()) {
       return new Response("Admin already configured.", { status: 409 });
     }
@@ -52,20 +72,27 @@ export function createAuthApi(opts: AuthApiOptions) {
     } catch {
       return new Response("Invalid JSON.", { status: 400 });
     }
-    const { username, password } = body as Record<string, unknown>;
-    if (typeof username !== "string" || username.trim().length === 0) {
-      return new Response("Username is required.", { status: 400 });
+    const parsed = readCredentials(body as Record<string, unknown>);
+    if ("error" in parsed) {
+      return new Response(parsed.error, { status: 400 });
     }
-    if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+    if (parsed.password.length < MIN_PASSWORD_LENGTH) {
       return new Response(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`, { status: 400 });
     }
-    await credentialStore.createInitialAdmin(username.trim(), password);
-    await auditLog.record("admin_created", { username: username.trim(), ip: clientIp(req) });
+
+    try {
+      await credentialStore.createInitialAdmin(parsed.username, parsed.password);
+    } catch {
+      // Lost a race against another concurrent setup request — the
+      // credential store's internal serialization caught it; report the
+      // same 409 a sequential second attempt would get, not a 500.
+      return new Response("Admin already configured.", { status: 409 });
+    }
+    await auditLog.record("admin_created", { username: parsed.username, ip });
     return new Response("Admin created.", { status: 201 });
   }
 
-  async function handleLogin(req: Request): Promise<Response> {
-    const ip = clientIp(req);
+  async function handleLogin(req: Request, ip: string): Promise<Response> {
     if (!rateLimiter.check(ip)) {
       await auditLog.record("login_rate_limited", { ip });
       return new Response("Too many login attempts. Try again later.", { status: 429 });
@@ -77,10 +104,11 @@ export function createAuthApi(opts: AuthApiOptions) {
     } catch {
       return new Response("Invalid JSON.", { status: 400 });
     }
-    const { username, password } = body as Record<string, unknown>;
-    if (typeof username !== "string" || typeof password !== "string") {
-      return new Response("Username and password are required.", { status: 400 });
+    const parsed = readCredentials(body as Record<string, unknown>);
+    if ("error" in parsed) {
+      return new Response(parsed.error, { status: 400 });
     }
+    const { username, password } = parsed;
 
     const result = await credentialStore.verifyCredentials(username, password);
 
@@ -96,6 +124,9 @@ export function createAuthApi(opts: AuthApiOptions) {
     }
     if (result.outcome === "invalid") {
       await auditLog.record("login_failed", { username, ip });
+      if (result.justLocked) {
+        await auditLog.record("account_locked", { username, ip });
+      }
       return new Response("Invalid username or password.", { status: 401 });
     }
 
@@ -104,11 +135,11 @@ export function createAuthApi(opts: AuthApiOptions) {
     return new Response("Logged in.", { status: 200, headers: { "Set-Cookie": sessionCookieHeader(token) } });
   }
 
-  async function handleLogout(req: Request): Promise<Response> {
+  async function handleLogout(req: Request, ip: string): Promise<Response> {
     const token = readSessionToken(req);
     if (token) {
       sessionStore.destroy(token);
-      await auditLog.record("logout", { ip: clientIp(req) });
+      await auditLog.record("logout", { ip });
     }
     return new Response("Logged out.", { status: 200, headers: { "Set-Cookie": clearCookieHeader() } });
   }
