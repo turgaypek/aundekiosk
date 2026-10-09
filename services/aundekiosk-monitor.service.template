@@ -1,0 +1,13 @@
+[Unit]
+Description=Run AundeKiosk resource monitor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/aundekiosk/monitor/resource-monitor.sh
+WorkingDirectory=/opt/aundekiosk
+User=aundekiosk
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
