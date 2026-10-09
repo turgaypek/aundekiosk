@@ -1,0 +1,11 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:hash-wasm@4.11.0": "4.11.0"
+  },
+  "npm": {
+    "hash-wasm@4.11.0": {
+      "integrity": "sha512-HVusNXlVqHe0fzIzdQOGolnFN6mX/fqcrSAOcTBXdvzrXVHwTz11vXeKRmkR5gTuwVpvHZEIyKoePDvuAR+XwQ=="
+    }
+  }
+}

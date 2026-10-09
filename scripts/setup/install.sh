@@ -35,6 +35,16 @@ fi
 msg "$INFO" "Generating the self-signed TLS certificate (if one doesn't exist yet)..."
 bash "$AUNDEKIOSK_INSTALL_DIR/scripts/setup/generate-tls-cert.sh" "$AUNDEKIOSK_INSTALL_DIR/tls"
 
+msg "$INFO" "Pre-caching the dashboard's Deno dependencies (so the service never has to reach the network at startup)..."
+# DENO_DIR lives under the install tree (not a user $HOME) because the
+# 'aundekiosk' service user has none (--no-create-home); the chown below
+# hands this directory to it along with everything else. --lock verifies
+# the one pinned dependency's integrity hash instead of trusting whatever
+# the registry serves at cache time.
+DENO_DIR="$AUNDEKIOSK_INSTALL_DIR/.deno" /usr/local/bin/deno cache \
+    --lock="$AUNDEKIOSK_INSTALL_DIR/dashboard/deno.lock" \
+    "$AUNDEKIOSK_INSTALL_DIR/dashboard/server.ts"
+
 msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it can write config.json; root reclaims 'privileged' so a dashboard-level bug can never rewrite a script sudo will run as root)..."
 chown -R aundekiosk:aundekiosk "$AUNDEKIOSK_INSTALL_DIR"
 chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/privileged"

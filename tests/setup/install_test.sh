@@ -26,4 +26,13 @@ case "$output" in
     ;;
 esac
 
+# The dashboard's one npm dependency must be pre-cached (with its lock
+# file, for integrity) during install, while there's still network access
+# and before the --cached-only service unit would otherwise fail to start.
+grep -q "deno cache" "$INSTALL_SH"
+assert_status 0 $? "install.sh pre-caches the dashboard's Deno dependencies"
+
+grep -q -- "--lock=" "$INSTALL_SH"
+assert_status 0 $? "install.sh verifies the cached dependency against deno.lock"
+
 assert_summary
