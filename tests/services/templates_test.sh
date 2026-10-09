@@ -37,4 +37,22 @@ case "$DASHBOARD_UNIT_CONTENT" in
   *) assert_eq "has-cached-only" "missing" "aundekiosk-dashboard.service.template runs with --cached-only (never fetches at runtime)" ;;
 esac
 
+
+# Both services write to the same shared audit.log (dashboard.service.ts /
+# monitor/lib.sh's append_monitor_audit_event). Whichever one creates the
+# file first matters: Deno's writeTextFile can request mode 0o600 itself,
+# but plain bash `>>` cannot, so it gets whatever the process umask allows
+# (0644 by default) — a world-readable log of login attempts, usernames
+# and source IPs. UMask=0077 closes that regardless of which side wins the
+# race to create the file first.
+for unit in aundekiosk-dashboard.service.template aundekiosk-monitor.service.template; do
+  grep -q "^UMask=0077$" "$SERVICES_DIR/$unit"
+  assert_status 0 $? "$unit sets UMask=0077 so audit.log can never end up world-readable"
+done
+
+# The monitor unit must run as the unprivileged 'aundekiosk' user (same
+# sudoers-whitelist trust boundary as the dashboard), never as root.
+grep -q "^User=aundekiosk$" "$SERVICES_DIR/aundekiosk-monitor.service.template"
+assert_status 0 $? "aundekiosk-monitor.service.template runs as the unprivileged aundekiosk user"
+
 assert_summary

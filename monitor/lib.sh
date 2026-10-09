@@ -123,6 +123,18 @@ resolve_triggered_action() {
 # that wraps midnight (start > end, e.g. 22:00-02:00) as well as a plain
 # same-day window; the "10#" prefixes stop bash from misreading a
 # zero-padded hour like "08" as an invalid octal literal.
+# True while fewer than `grace` seconds have elapsed since the daemon
+# itself started. Used to suppress restart_services/reboot right after the
+# daemon (re)starts — including right after a reboot the monitor itself
+# just caused — so a flapping condition that re-triggers immediately can't
+# turn into a reboot loop. Threshold breaches are still measured and
+# audit-logged during the grace window; only the privileged action is held
+# back (see resource-monitor.sh).
+is_within_startup_grace() {
+  local elapsed_seconds="$1" grace_seconds="$2"
+  [[ "$elapsed_seconds" -lt "$grace_seconds" ]]
+}
+
 is_within_monitoring_window() {
   local current="$1" start="$2" end="$3"
   local cur_min start_min end_min

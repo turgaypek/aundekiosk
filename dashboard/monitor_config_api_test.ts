@@ -104,3 +104,75 @@ Deno.test("POST accepts a null activeWindow (always-on monitoring)", async () =>
     assertEquals(res.status, 200);
   });
 });
+
+Deno.test("POST rejects a cooldownSeconds so large it would break the daemon's bash arithmetic", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/monitor-config.json`;
+    const original = JSON.stringify(VALID_CONFIG);
+    await Deno.writeTextFile(configPath, original);
+    const api = createMonitorConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    // 1e300 passes Number.isInteger but is nowhere near a realistic
+    // cooldown, and $((NOW_EPOCH + 1e+300)) in the bash daemon is an
+    // arithmetic error that would crash it before it could act.
+    const badConfig = {
+      ...VALID_CONFIG,
+      tiers: [{ threshold: 80, sustainedSamples: 10, action: "restart_services", cooldownSeconds: 1e300 }],
+    };
+    const req = new Request("http://localhost/monitor-config", { method: "POST", body: JSON.stringify(badConfig) });
+    const res = await api.handlePost(req);
+    assertEquals(res.status, 400);
+    assertEquals(await Deno.readTextFile(configPath), original);
+  });
+});
+
+Deno.test("POST rejects a cooldownSeconds large enough to overflow bash's 64-bit signed arithmetic", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/monitor-config.json`;
+    const original = JSON.stringify(VALID_CONFIG);
+    await Deno.writeTextFile(configPath, original);
+    const api = createMonitorConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    // An admin's "never again" value near Number.MAX_SAFE_INTEGER wraps to
+    // a negative number in bash's signed 64-bit arithmetic, putting the
+    // cooldown deadline in the past — i.e. no cooldown at all.
+    const badConfig = {
+      ...VALID_CONFIG,
+      tiers: [{ threshold: 80, sustainedSamples: 10, action: "restart_services", cooldownSeconds: 9223372036854775807 }],
+    };
+    const req = new Request("http://localhost/monitor-config", { method: "POST", body: JSON.stringify(badConfig) });
+    const res = await api.handlePost(req);
+    assertEquals(res.status, 400);
+    assertEquals(await Deno.readTextFile(configPath), original);
+  });
+});
+
+Deno.test("POST rejects a sustainedSamples value absurdly larger than anything sampleIntervalSeconds could reach", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/monitor-config.json`;
+    const original = JSON.stringify(VALID_CONFIG);
+    await Deno.writeTextFile(configPath, original);
+    const api = createMonitorConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    const badConfig = {
+      ...VALID_CONFIG,
+      tiers: [{ threshold: 80, sustainedSamples: 1e300, action: "log", cooldownSeconds: 10 }],
+    };
+    const req = new Request("http://localhost/monitor-config", { method: "POST", body: JSON.stringify(badConfig) });
+    const res = await api.handlePost(req);
+    assertEquals(res.status, 400);
+    assertEquals(await Deno.readTextFile(configPath), original);
+  });
+});
+
+Deno.test("POST accepts cooldownSeconds and sustainedSamples at their upper bounds", async () => {
+  await withTempDir(async (dir) => {
+    const api = createMonitorConfigApi({ configPath: `${dir}/monitor-config.json`, samplePath: `${dir}/unused.json` });
+    const req = new Request("http://localhost/monitor-config", {
+      method: "POST",
+      body: JSON.stringify({
+        ...VALID_CONFIG,
+        tiers: [{ threshold: 90, sustainedSamples: 1000, action: "reboot", cooldownSeconds: 604800 }],
+      }),
+    });
+    const res = await api.handlePost(req);
+    assertEquals(res.status, 200);
+  });
+});

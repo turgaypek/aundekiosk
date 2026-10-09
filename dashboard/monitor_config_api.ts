@@ -14,6 +14,17 @@ interface MonitorConfig {
 const HHMM_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const VALID_ACTIONS = new Set(["log", "restart_services", "reboot"]);
 
+// Upper bounds exist because the monitor daemon does its own arithmetic
+// with these values in bash, not just TypeScript: $((NOW_EPOCH +
+// cooldownSeconds)) overflows/errors on a huge value (confirmed: 1e300
+// is a bash arithmetic error; a value near Number.MAX_SAFE_INTEGER wraps
+// to negative, silently disabling the cooldown it was meant to enforce).
+// 604800s = 7 days is already a generous ceiling for "don't repeat this
+// for a while"; 1000 sustained samples is ~2.8 hours even at a 10s
+// interval, far past any realistic alarm condition.
+const MAX_COOLDOWN_SECONDS = 604800;
+const MAX_SUSTAINED_SAMPLES = 1000;
+
 function isValidTier(value: unknown): value is MonitorTier {
   if (typeof value !== "object" || value === null) return false;
   const t = value as Record<string, unknown>;
@@ -25,11 +36,13 @@ function isValidTier(value: unknown): value is MonitorTier {
     typeof t.sustainedSamples === "number" &&
     Number.isInteger(t.sustainedSamples) &&
     t.sustainedSamples >= 1 &&
+    t.sustainedSamples <= MAX_SUSTAINED_SAMPLES &&
     typeof t.action === "string" &&
     VALID_ACTIONS.has(t.action) &&
     typeof t.cooldownSeconds === "number" &&
     Number.isInteger(t.cooldownSeconds) &&
-    t.cooldownSeconds >= 0
+    t.cooldownSeconds >= 0 &&
+    t.cooldownSeconds <= MAX_COOLDOWN_SECONDS
   );
 }
 

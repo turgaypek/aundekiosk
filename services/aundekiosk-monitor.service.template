@@ -7,6 +7,7 @@ Type=simple
 ExecStart=/opt/aundekiosk/monitor/resource-monitor.sh
 WorkingDirectory=/opt/aundekiosk
 User=aundekiosk
+UMask=0077
 Restart=on-failure
 
 [Install]

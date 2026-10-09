@@ -150,5 +150,22 @@ else
   assert_eq "outside" "outside" "is_within_monitoring_window: a midnight-wrapping window excludes a daytime time"
 fi
 
+
+# --- is_within_startup_grace ---
+# Review: prevents a reboot loop by refusing to act again right after the
+# daemon itself (re)starts, which is exactly what happens right after a
+# reboot the monitor caused.
+if is_within_startup_grace 10 60; then
+  assert_eq "within" "within" "is_within_startup_grace is true shortly after daemon start"
+else
+  assert_eq "within" "elapsed" "is_within_startup_grace is true shortly after daemon start"
+fi
+
+if is_within_startup_grace 61 60; then
+  assert_eq "elapsed" "within" "is_within_startup_grace is false once the grace period has elapsed"
+else
+  assert_eq "elapsed" "elapsed" "is_within_startup_grace is false once the grace period has elapsed"
+fi
+
 rm -rf "$FIXTURES"
 assert_summary

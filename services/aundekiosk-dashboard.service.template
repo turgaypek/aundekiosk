@@ -9,6 +9,7 @@ WorkingDirectory=/opt/aundekiosk
 Environment=PORT=8080
 Environment=DENO_DIR=/opt/aundekiosk/.deno
 User=aundekiosk
+UMask=0077
 Restart=on-failure
 
 [Install]
