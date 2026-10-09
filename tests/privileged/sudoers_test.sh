@@ -9,6 +9,9 @@ SUDOERS_FILE="$SCRIPT_DIR/../../privileged/sudoers.d/aundekiosk"
 grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/restart-kiosk-services.sh$" "$SUDOERS_FILE"
 assert_status 0 $? "sudoers file grants aundekiosk exactly the restart-kiosk-services.sh line"
 
+grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/reboot-device.sh$" "$SUDOERS_FILE"
+assert_status 0 $? "sudoers file grants aundekiosk exactly the reboot-device.sh line"
+
 grep -qE '\*|\$\{|\$\(' "$SUDOERS_FILE"
 if [[ $? -eq 0 ]]; then
   assert_eq "no-wildcards" "has-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
