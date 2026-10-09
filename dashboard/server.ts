@@ -8,6 +8,7 @@ import { createAuthApi } from "./auth/auth_api.ts";
 import { createStepUpGuard } from "./auth/step_up.ts";
 import { createMonitorConfigApi } from "./monitor_config_api.ts";
 import { createSshApi } from "./ssh_api.ts";
+import { createOsPasswordApi } from "./os_password_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -64,6 +65,27 @@ export function createHandler(options: HandlerOptions = {}) {
       }
     },
   });
+  const osPasswordApi = createOsPasswordApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    runPrivilegedChange: async (newPassword) => {
+      const piUser = Deno.env.get("AUNDEKIOSK_PI_USER") ?? "pi";
+      const command = new Deno.Command("sudo", {
+        args: ["/opt/aundekiosk/privileged/change-os-password.sh"],
+        stdin: "piped",
+      });
+      const child = command.spawn();
+      const writer = child.stdin.getWriter();
+      await writer.write(new TextEncoder().encode(JSON.stringify({ username: piUser, newPassword })));
+      await writer.close();
+      const { code, stderr } = await child.output();
+      if (code !== 0) {
+        throw new Error(`change-os-password.sh failed: ${new TextDecoder().decode(stderr)}`);
+      }
+    },
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -110,6 +132,14 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return sshApi.handleToggle(req, session.username, ip);
+    }
+
+    if (url.pathname === "/os-password" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return osPasswordApi.handleChange(req, session.username, ip);
     }
 
     return serveStatic(url.pathname);

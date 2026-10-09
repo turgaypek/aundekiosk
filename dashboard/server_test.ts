@@ -231,3 +231,21 @@ Deno.test("POST /ssh-config without a session returns 401", async () => {
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+Deno.test("POST /os-password without a session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(
+      new Request("http://localhost/os-password", { method: "POST", body: JSON.stringify({}) }),
+    );
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
