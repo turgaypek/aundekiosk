@@ -21,6 +21,9 @@ for line in \
   assert_status 0 $? "sudoers file grants the exact line: $line"
 done
 
+grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/change-os-password.sh$" "$SUDOERS_FILE"
+assert_status 0 $? "sudoers file grants aundekiosk exactly the change-os-password.sh line"
+
 grep -qE '\*|\$\{|\$\(' "$SUDOERS_FILE"
 if [[ $? -eq 0 ]]; then
   assert_eq "no-wildcards" "has-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
