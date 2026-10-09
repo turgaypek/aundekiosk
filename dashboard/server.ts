@@ -5,7 +5,9 @@ import { createSessionStore } from "./auth/session_store.ts";
 import { createRateLimiter } from "./auth/rate_limiter.ts";
 import { createAuditLog } from "./auth/audit_log.ts";
 import { createAuthApi } from "./auth/auth_api.ts";
+import { createStepUpGuard } from "./auth/step_up.ts";
 import { createMonitorConfigApi } from "./monitor_config_api.ts";
+import { createSshApi } from "./ssh_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -49,6 +51,19 @@ export function createHandler(options: HandlerOptions = {}) {
     rateLimiter: createRateLimiter(LOGIN_RATE_LIMIT),
     auditLog: createAuditLog({ logPath: auditLogPath }),
   });
+  const sshApi = createSshApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    runPrivilegedToggle: async (action) => {
+      const command = new Deno.Command("sudo", { args: ["/opt/aundekiosk/privileged/toggle-ssh.sh", action] });
+      const { code, stderr } = await command.output();
+      if (code !== 0) {
+        throw new Error(`toggle-ssh.sh ${action} failed: ${new TextDecoder().decode(stderr)}`);
+      }
+    },
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -87,6 +102,14 @@ export function createHandler(options: HandlerOptions = {}) {
       if (req.method === "GET") return monitorConfigApi.handleGet();
       if (req.method === "POST") return monitorConfigApi.handlePost(req);
       return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    if (url.pathname === "/ssh-config" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return sshApi.handleToggle(req, session.username, ip);
     }
 
     return serveStatic(url.pathname);

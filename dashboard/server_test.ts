@@ -213,3 +213,21 @@ Deno.test("GET /monitor-config with a valid session returns the tier data", asyn
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+Deno.test("POST /ssh-config without a session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(
+      new Request("http://localhost/ssh-config", { method: "POST", body: JSON.stringify({ action: "enable" }) }),
+    );
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
