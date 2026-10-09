@@ -35,4 +35,15 @@ assert_status 0 $? "install.sh pre-caches the dashboard's Deno dependencies"
 grep -q -- "--lock=" "$INSTALL_SH"
 assert_status 0 $? "install.sh verifies the cached dependency against deno.lock"
 
+# snmpd must be installed so the SNMPv3 privileged helper (Plan 4) has
+# something to configure and enable.
+grep -qE "^apt-get install -y .*\bsnmpd\b" "$INSTALL_SH"
+assert_status 0 $? "install.sh installs the snmpd package"
+
+# change-os-password.sh (Plan 4) refuses to act on any username other
+# than the one recorded here at install time — this is what makes that
+# refusal possible, not a config the dashboard can influence at runtime.
+grep -q "pi-user.txt" "$INSTALL_SH"
+assert_status 0 $? "install.sh records the target user for change-os-password.sh"
+
 assert_summary

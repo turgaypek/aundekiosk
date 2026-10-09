@@ -11,6 +11,12 @@ for t in \
   "$SCRIPT_DIR/privileged/restart_kiosk_services_test.sh" \
   "$SCRIPT_DIR/privileged/reboot_device_test.sh" \
   "$SCRIPT_DIR/privileged/sudoers_test.sh" \
+  "$SCRIPT_DIR/privileged/lib_test.sh" \
+  "$SCRIPT_DIR/privileged/toggle_ssh_test.sh" \
+  "$SCRIPT_DIR/privileged/toggle_ssh_password_auth_test.sh" \
+  "$SCRIPT_DIR/privileged/change_os_password_test.sh" \
+  "$SCRIPT_DIR/privileged/network_config_test.sh" \
+  "$SCRIPT_DIR/privileged/configure_snmp_test.sh" \
   "$SCRIPT_DIR/services/templates_test.sh" \
   "$SCRIPT_DIR/setup/install_test.sh" \
   "$SCRIPT_DIR/setup/generate_tls_cert_test.sh" \

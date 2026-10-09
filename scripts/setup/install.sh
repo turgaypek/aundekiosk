@@ -13,9 +13,12 @@ if [ -z "$PI_USER" ]; then
 fi
 msg "$SUCCESS" "Target user identified as '$PI_USER'."
 
-msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno)..."
+msg "$INFO" "Recording the target user for OS password changes..."
+echo "$PI_USER" > "$AUNDEKIOSK_INSTALL_DIR/pi-user.txt"
+
+msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool openssl unzip
+apt-get install -y jq chromium wtype xdotool openssl snmpd unzip
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 
 msg "$INFO" "Creating dedicated 'aundekiosk' system user for the dashboard..."
