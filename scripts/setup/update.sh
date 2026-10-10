@@ -22,6 +22,14 @@ if [ ! -d "$AUNDEKIOSK_INSTALL_DIR/.git" ]; then
     exit 1
 fi
 
+# Git's dubious-ownership check looks at the WORKING TREE root
+# ($AUNDEKIOSK_INSTALL_DIR itself, deliberately owned by aundekiosk so
+# the dashboard can write config.json), not just .git — without this,
+# `git pull` as root refuses with "detected dubious ownership" even
+# though .git itself stays root-owned (install.sh's own defense in
+# depth against the dashboard user tampering with history/hooks).
+git config --global --add safe.directory "$AUNDEKIOSK_INSTALL_DIR"
+
 msg "$INFO" "Pulling the latest AundeKiosk commits..."
 git -C "$AUNDEKIOSK_INSTALL_DIR" pull --ff-only
 

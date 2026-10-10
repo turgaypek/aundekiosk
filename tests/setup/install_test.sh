@@ -108,4 +108,13 @@ assert_status 0 $? "update.sh pulls the latest commits before re-running install
 grep -q "install.sh" "$UPDATE_SH" 2>/dev/null
 assert_status 0 $? "update.sh re-runs install.sh after pulling, reusing its idempotent setup logic rather than duplicating it"
 
+# Verified against a real `git pull` run as root: git's dubious-ownership
+# check looks at the WORKING TREE root ($AUNDEKIOSK_INSTALL_DIR itself,
+# deliberately aundekiosk-owned so the dashboard can write config.json),
+# not just .git — so keeping .git root-owned alone was not enough; a real
+# `sudo bash update.sh` still failed with "detected dubious ownership"
+# until this exception was added.
+grep -qE 'git config --global --add safe\.directory "\$AUNDEKIOSK_INSTALL_DIR"' "$UPDATE_SH" 2>/dev/null
+assert_status 0 $? "update.sh adds a git safe.directory exception for the aundekiosk-owned working tree before pulling"
+
 assert_summary
