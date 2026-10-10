@@ -65,4 +65,27 @@ case "$DASHBOARD_UNIT_CONTENT" in
   *) assert_eq "has-allow-run" "missing" "aundekiosk-dashboard.service.template grants --allow-run=sudo so privileged helpers can actually be invoked" ;;
 esac
 
+# Discovered by actually running the dashboard service for real (never
+# exercised before — every prior test used `deno test`'s own, much
+# broader --allow-env, not the unit's restricted allowlist):
+# server.ts reads AUNDEKIOSK_ALLOW_HTTP via Deno.env.get() but the unit
+# never granted it, so the service crash-looped with
+# "NotCapable: Requires env access to 'AUNDEKIOSK_ALLOW_HTTP'" on every
+# single start. Rather than pin one missing variable, extract every
+# Deno.env.get("...") call in server.ts and require each one appears in
+# the unit's --allow-env list — this catches the NEXT omission too, not
+# just this one.
+DASHBOARD_SERVER_TS="$SCRIPT_DIR/../../dashboard/server.ts"
+ALLOW_ENV_LIST=$(grep -o "allow-env=[^ ]*" "$SERVICES_DIR/aundekiosk-dashboard.service.template" | cut -d= -f2)
+for env_var in $(grep -oE 'Deno\.env\.get\("[A-Z_]+"\)' "$DASHBOARD_SERVER_TS" | grep -oE '"[A-Z_]+"' | tr -d '"' | sort -u); do
+  case ",$ALLOW_ENV_LIST," in
+    *",$env_var,"*)
+      assert_eq "granted" "granted" "aundekiosk-dashboard.service.template's --allow-env includes $env_var, which server.ts actually reads"
+      ;;
+    *)
+      assert_eq "granted" "missing" "aundekiosk-dashboard.service.template's --allow-env includes $env_var, which server.ts actually reads"
+      ;;
+  esac
+done
+
 assert_summary

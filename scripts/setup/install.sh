@@ -6,7 +6,21 @@ source "$SCRIPT_DIR/common.sh"
 
 msg "$INFO" "Starting AundeKiosk installation..."
 
-PI_USER="${1:-${SUDO_USER:-}}"
+# This script doubles as the update path (update.sh re-runs it after
+# `git pull`). On an update, SUDO_USER is whichever admin happened to run
+# it, not necessarily the original target user — the already-recorded
+# file wins, so an update can never silently change which OS account
+# change-os-password.sh is allowed to target. An explicit argument still
+# overrides, for intentionally re-pointing an existing install. This read
+# happens before the directory below is (re-)created, so a first-ever
+# install (no directory yet) safely falls through to SUDO_USER.
+if [ -n "${1:-}" ]; then
+    PI_USER="$1"
+elif [ -f "$AUNDEKIOSK_PRIV_DIR/pi-user.txt" ]; then
+    PI_USER=$(cat "$AUNDEKIOSK_PRIV_DIR/pi-user.txt")
+else
+    PI_USER="${SUDO_USER:-}"
+fi
 if [ -z "$PI_USER" ]; then
     msg "$ERROR" "Could not determine target user. Ensure SUDO_USER is set."
     exit 1
@@ -63,6 +77,13 @@ msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it
 chown -R aundekiosk:aundekiosk "$AUNDEKIOSK_INSTALL_DIR"
 chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/privileged"
 chmod -R go-w "$AUNDEKIOSK_INSTALL_DIR/privileged"
+# The repo lives directly at $AUNDEKIOSK_INSTALL_DIR and update.sh's
+# `git pull` runs as root (via sudo), right before it re-execs this
+# script. Keeping .git root-owned avoids git's dubious-ownership
+# refusal that the blanket chown above would otherwise trigger.
+if [ -d "$AUNDEKIOSK_INSTALL_DIR/.git" ]; then
+    chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/.git"
+fi
 
 msg "$INFO" "Installing the privileged helper whitelist (sudoers)..."
 SUDOERS_SRC="$AUNDEKIOSK_INSTALL_DIR/privileged/sudoers.d/aundekiosk"
@@ -89,7 +110,11 @@ cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-monitor.service.template" /etc/s
 msg "$INFO" "Reloading systemd and enabling services..."
 systemctl daemon-reload
 systemctl enable aundekiosk-runner.service aundekiosk-switcher.service aundekiosk-dashboard.service aundekiosk-monitor.service
-systemctl start aundekiosk-dashboard.service aundekiosk-monitor.service
+# restart, not start: on a fresh install nothing is running yet, so this
+# behaves identically to start; on an update (update.sh re-running this
+# script after `git pull`) it's the only way the already-running
+# services actually pick up new code or a changed unit file.
+systemctl restart aundekiosk-dashboard.service aundekiosk-monitor.service
 
 echo
 msg "$CALLOUT" "AundeKiosk is now installed."

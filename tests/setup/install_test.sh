@@ -75,4 +75,37 @@ assert_status 0 $? "install.sh creates the privileged-state directory as root-ow
 grep -q "AUNDEKIOSK_PRIV_DIR" "$SCRIPT_DIR/../../scripts/setup/common.sh"
 assert_status 0 $? "common.sh defines AUNDEKIOSK_PRIV_DIR"
 
+# install.sh now doubles as the update script (re-run after `git pull`):
+# on an update, SUDO_USER may be whichever admin ran the pull, not the
+# original target user recorded at first install — the already-recorded
+# file must win, or an update could silently change which OS account
+# change-os-password.sh is allowed to target.
+grep -qE 'if \[ -f "\$AUNDEKIOSK_PRIV_DIR/pi-user\.txt" \]' "$INSTALL_SH"
+assert_status 0 $? "install.sh prefers an already-recorded pi-user.txt over SUDO_USER on a re-run"
+
+# The repo is cloned directly into $AUNDEKIOSK_INSTALL_DIR and `git pull`
+# is how updates are fetched (scripts/setup/update.sh). The blanket
+# "chown -R aundekiosk:aundekiosk" must not reach .git, or a later
+# `git pull` run as root (inside update.sh, via sudo) would fight git's
+# dubious-ownership checks against a non-root-owned .git.
+grep -qE 'chown -R root:root "\$AUNDEKIOSK_INSTALL_DIR/\.git"' "$INSTALL_SH"
+assert_status 0 $? "install.sh keeps .git root-owned so a root-run git pull never hits a dubious-ownership error"
+
+# `systemctl start` on an already-active unit is a no-op — it would
+# never pick up a changed service file or new server.ts code on an
+# update. `restart` is a no-op-equivalent on a fresh install (nothing
+# was running yet) and actually reloads on an update.
+grep -qE '^systemctl restart aundekiosk-dashboard\.service aundekiosk-monitor\.service$' "$INSTALL_SH"
+assert_status 0 $? "install.sh restarts (not just starts) the dashboard/monitor services, so an update actually takes effect"
+
+UPDATE_SH="$SCRIPT_DIR/../../scripts/setup/update.sh"
+[[ -f "$UPDATE_SH" ]]
+assert_status 0 $? "scripts/setup/update.sh exists"
+
+grep -q "git pull" "$UPDATE_SH" 2>/dev/null
+assert_status 0 $? "update.sh pulls the latest commits before re-running install.sh"
+
+grep -q "install.sh" "$UPDATE_SH" 2>/dev/null
+assert_status 0 $? "update.sh re-runs install.sh after pulling, reusing its idempotent setup logic rather than duplicating it"
+
 assert_summary
