@@ -105,6 +105,20 @@ Deno.test("handleConfigure rejects a privPassphrase containing a newline", async
   });
 });
 
+// Review Focus #4 (plan's own checklist): a v1/v2c-shaped payload — a
+// bare community string, no SNMPv3 fields at all — must be rejected.
+Deno.test("handleConfigure rejects a v1/v2c-shaped payload (bare community string)", async () => {
+  await withApi(async (api, calls) => {
+    const res = await api.handleConfigure(
+      jsonRequest({ enabled: true, community: "public", confirmPassword: "a-long-enough-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 400);
+    assertEquals(calls().length, 0);
+  });
+});
+
 Deno.test("handleConfigure accepts enabled:false without requiring the SNMPv3 fields", async () => {
   await withApi(async (api, calls) => {
     const res = await api.handleConfigure(

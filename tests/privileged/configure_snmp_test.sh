@@ -113,6 +113,17 @@ assert_status 1 $? "configure-snmp.sh rejects a privPassphrase containing a newl
 bash "$HELPER" "unexpected-arg" > "$WORKDIR/reject3.txt" 2>&1
 assert_status 1 $? "configure-snmp.sh rejects any command-line argument (data comes from stdin only)"
 
+# Review Focus #4 (plan's own checklist): a v1/v2c-shaped payload — a
+# bare community string, no SNMPv3 fields at all — must be rejected,
+# never silently accepted as "enabled" with missing fields treated as
+# defaults.
+rm -f "$WORKDIR/snmpd.conf" "$WORKDIR/snmpd-user.conf"
+V1V2C_PAYLOAD='{"enabled":true,"community":"public"}'
+echo "$V1V2C_PAYLOAD" | bash "$HELPER" > "$WORKDIR/reject6.txt" 2>&1
+assert_status 1 $? "configure-snmp.sh rejects a v1/v2c-shaped payload (bare community string, no SNMPv3 fields)"
+[[ ! -f "$WORKDIR/snmpd.conf" ]]
+assert_status 0 $? "configure-snmp.sh never writes snmpd.conf for a v1/v2c-shaped payload"
+
 rm -f "$WORKDIR/systemctl.log"
 echo '{"enabled":false}' | bash "$HELPER"
 assert_status 0 $? "configure-snmp.sh disabled:true path exits 0"

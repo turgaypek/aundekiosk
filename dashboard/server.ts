@@ -63,6 +63,9 @@ export function createHandler(options: HandlerOptions = {}) {
     runPrivilegedToggle: async (action) => {
       await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-ssh.sh", action]);
     },
+    runPrivilegedPasswordAuthToggle: async (action) => {
+      await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-ssh-password-auth.sh", action]);
+    },
   });
   const osPasswordApi = createOsPasswordApi({
     stepUpGuard: createStepUpGuard({

@@ -5,7 +5,12 @@ import { createStepUpGuard } from "./auth/step_up.ts";
 import { assertEquals } from "./test_util.ts";
 
 async function withApi(
-  fn: (api: ReturnType<typeof createSshApi>, dir: string, record: () => string[]) => Promise<void>,
+  fn: (
+    api: ReturnType<typeof createSshApi>,
+    dir: string,
+    record: () => string[],
+    passwordAuthRecord: () => string[],
+  ) => Promise<void>,
 ) {
   const dir = await Deno.makeTempDir();
   try {
@@ -13,13 +18,17 @@ async function withApi(
     await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
     const stepUpGuard = createStepUpGuard({ credentialStore, auditLog: createAuditLog({ logPath: `${dir}/audit.log` }) });
     const calls: string[] = [];
+    const passwordAuthCalls: string[] = [];
     const api = createSshApi({
       stepUpGuard,
       runPrivilegedToggle: async (action: string) => {
         calls.push(action);
       },
+      runPrivilegedPasswordAuthToggle: async (action: string) => {
+        passwordAuthCalls.push(action);
+      },
     });
-    await fn(api, dir, () => calls);
+    await fn(api, dir, () => calls, () => passwordAuthCalls);
   } finally {
     await Deno.remove(dir, { recursive: true });
   }
@@ -74,5 +83,49 @@ Deno.test("handleToggle rejects an action outside enable/disable", async () => {
     );
     assertEquals(res.status, 400);
     assertEquals(calls().length, 0);
+  });
+});
+
+// Final review (Important I7): the plan's own Task 3 Interfaces promised
+// a way to toggle SSH password-auth hardening (spec §8.1), and
+// toggle-ssh-password-auth.sh was built and whitelisted in Task 2 — but
+// nothing in the dashboard API ever called it. A "target" field
+// distinguishes toggling the SSH service itself from toggling
+// password-auth; omitting it keeps the original "service" behavior.
+Deno.test("handleToggle with target 'password_auth' invokes the password-auth toggle, not the service toggle", async () => {
+  await withApi(async (api, _dir, calls, passwordAuthCalls) => {
+    const res = await api.handleToggle(
+      jsonRequest({ target: "password_auth", action: "disable", confirmPassword: "a-long-enough-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 200);
+    assertEquals(JSON.stringify(passwordAuthCalls()), JSON.stringify(["disable"]));
+    assertEquals(calls().length, 0);
+  });
+});
+
+Deno.test("handleToggle with target 'password_auth' and a wrong confirmPassword returns 403 and never invokes the toggle", async () => {
+  await withApi(async (api, _dir, _calls, passwordAuthCalls) => {
+    const res = await api.handleToggle(
+      jsonRequest({ target: "password_auth", action: "disable", confirmPassword: "wrong-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 403);
+    assertEquals(passwordAuthCalls().length, 0);
+  });
+});
+
+Deno.test("handleToggle rejects a target outside service/password_auth", async () => {
+  await withApi(async (api, _dir, calls, passwordAuthCalls) => {
+    const res = await api.handleToggle(
+      jsonRequest({ target: "something_else", action: "disable", confirmPassword: "a-long-enough-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 400);
+    assertEquals(calls().length, 0);
+    assertEquals(passwordAuthCalls().length, 0);
   });
 });
