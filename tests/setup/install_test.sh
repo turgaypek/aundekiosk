@@ -40,6 +40,11 @@ assert_status 0 $? "install.sh verifies the cached dependency against deno.lock"
 grep -qE "^apt-get install -y .*\bsnmpd\b" "$INSTALL_SH"
 assert_status 0 $? "install.sh installs the snmpd package"
 
+# Final review (Important I4): the SNMPv3 source-restriction firewall
+# rule depends on iptables, which isn't guaranteed to be preinstalled.
+grep -qE "^apt-get install -y .*\biptables\b" "$INSTALL_SH"
+assert_status 0 $? "install.sh installs the iptables package"
+
 # change-os-password.sh (Plan 4) refuses to act on any username other
 # than the one recorded here at install time — this is what makes that
 # refusal possible, not a config the dashboard can influence at runtime.

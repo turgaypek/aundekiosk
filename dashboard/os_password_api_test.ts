@@ -57,6 +57,22 @@ Deno.test("handleChange rejects a wrong confirmPassword and never invokes the pr
   });
 });
 
+// Final review (Critical C1, defense in depth at the TS layer too): a
+// newline in the new password is read by chpasswd as a SECOND
+// "user:password" line, letting an attacker set an arbitrary account's
+// password through a field that only checked length.
+Deno.test("handleChange rejects a new password containing a newline", async () => {
+  await withApi(async (api, calls) => {
+    const res = await api.handleChange(
+      jsonRequest({ newPassword: "a-long-enough-password\nroot:owned", confirmPassword: "a-long-enough-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 400);
+    assertEquals(calls().length, 0);
+  });
+});
+
 Deno.test("handleChange rejects a new password shorter than 12 characters", async () => {
   await withApi(async (api, calls) => {
     const res = await api.handleChange(

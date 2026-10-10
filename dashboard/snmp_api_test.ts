@@ -77,6 +77,34 @@ Deno.test("handleConfigure rejects a wrong confirmPassword and never invokes the
   });
 });
 
+// Final review (Critical C3, defense in depth at the TS layer too): a
+// newline in either passphrase is written verbatim into net-snmp's
+// config files by the privileged helper and read as a second,
+// attacker-chosen directive.
+Deno.test("handleConfigure rejects an authPassphrase containing a newline", async () => {
+  await withApi(async (api, calls) => {
+    const res = await api.handleConfigure(
+      jsonRequest({ ...VALID_SNMP_CONFIG, authPassphrase: "a-pass\nrocommunity public", confirmPassword: "a-long-enough-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 400);
+    assertEquals(calls().length, 0);
+  });
+});
+
+Deno.test("handleConfigure rejects a privPassphrase containing a newline", async () => {
+  await withApi(async (api, calls) => {
+    const res = await api.handleConfigure(
+      jsonRequest({ ...VALID_SNMP_CONFIG, privPassphrase: "a-pass\nrocommunity public", confirmPassword: "a-long-enough-password" }),
+      "admin",
+      "203.0.113.1",
+    );
+    assertEquals(res.status, 400);
+    assertEquals(calls().length, 0);
+  });
+});
+
 Deno.test("handleConfigure accepts enabled:false without requiring the SNMPv3 fields", async () => {
   await withApi(async (api, calls) => {
     const res = await api.handleConfigure(

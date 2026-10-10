@@ -20,9 +20,9 @@ msg "$INFO" "Recording the target user for OS password changes..."
 echo "$PI_USER" > "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 
-msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd)..."
+msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool openssl snmpd unzip
+apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 
 msg "$INFO" "Creating dedicated 'aundekiosk' system user for the dashboard..."

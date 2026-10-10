@@ -6,6 +6,14 @@ const VALID_PRIV_PROTOCOLS = new Set(["AES"]);
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 const MIN_PASSPHRASE_LENGTH = 8;
 
+// Defense in depth, mirroring the bash-level is_safe_secret_value check
+// in privileged/lib.sh: a newline here would be written verbatim into
+// net-snmp's config files and read as a second, attacker-chosen
+// directive (final review: Critical C3).
+function containsNewline(value: string): boolean {
+  return value.includes("\n") || value.includes("\r");
+}
+
 function validateSnmpPayload(body: Record<string, unknown>): string | null {
   if (body.enabled === false) return null;
 
@@ -25,11 +33,17 @@ function validateSnmpPayload(body: Record<string, unknown>): string | null {
   if (typeof authPassphrase !== "string" || authPassphrase.length < MIN_PASSPHRASE_LENGTH) {
     return `authPassphrase must be at least ${MIN_PASSPHRASE_LENGTH} characters.`;
   }
+  if (containsNewline(authPassphrase)) {
+    return "authPassphrase must not contain a newline.";
+  }
   if (typeof privProtocol !== "string" || !VALID_PRIV_PROTOCOLS.has(privProtocol)) {
     return "privProtocol must be 'AES'.";
   }
   if (typeof privPassphrase !== "string" || privPassphrase.length < MIN_PASSPHRASE_LENGTH) {
     return `privPassphrase must be at least ${MIN_PASSPHRASE_LENGTH} characters.`;
+  }
+  if (containsNewline(privPassphrase)) {
+    return "privPassphrase must not contain a newline.";
   }
   if (typeof allowedSource !== "string" || allowedSource.length === 0) {
     return "allowedSource is required.";
