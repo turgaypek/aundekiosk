@@ -1,8 +1,13 @@
 import type { createStepUpGuard } from "./auth/step_up.ts";
+import type { createAuditLog } from "./auth/audit_log.ts";
 import { requireStepUp } from "./auth/require_step_up.ts";
 
 export interface SshApiOptions {
   stepUpGuard: ReturnType<typeof createStepUpGuard>;
+  // Spec §6 requires every privileged action, not just login/step-up,
+  // to leave an audit trail of who did it, from where, and whether it
+  // succeeded (final review: Important I6).
+  auditLog: ReturnType<typeof createAuditLog>;
   // Both injected so the API logic is testable without ever shelling out
   // to a real privileged helper; server.ts supplies the real sudo-based
   // callers.
@@ -15,7 +20,7 @@ export interface SshApiOptions {
 }
 
 export function createSshApi(opts: SshApiOptions) {
-  const { stepUpGuard, runPrivilegedToggle, runPrivilegedPasswordAuthToggle } = opts;
+  const { stepUpGuard, auditLog, runPrivilegedToggle, runPrivilegedPasswordAuthToggle } = opts;
 
   async function handleToggle(req: Request, username: string, ip: string): Promise<Response> {
     let body: unknown;
@@ -39,13 +44,23 @@ export function createSshApi(opts: SshApiOptions) {
       return new Response("action must be 'enable' or 'disable'.", { status: 400 });
     }
 
-    if (target === "password_auth") {
-      await runPrivilegedPasswordAuthToggle(action);
-      return new Response(`SSH password authentication ${action}d.`, { status: 200 });
+    const isPasswordAuth = target === "password_auth";
+    try {
+      if (isPasswordAuth) {
+        await runPrivilegedPasswordAuthToggle(action);
+      } else {
+        await runPrivilegedToggle(action);
+      }
+    } catch (error) {
+      await auditLog.record("ssh_toggled", { username, ip, target: target ?? "service", action, ok: false });
+      throw error;
     }
 
-    await runPrivilegedToggle(action);
-    return new Response(`SSH ${action}d.`, { status: 200 });
+    await auditLog.record("ssh_toggled", { username, ip, target: target ?? "service", action, ok: true });
+    return new Response(
+      isPasswordAuth ? `SSH password authentication ${action}d.` : `SSH ${action}d.`,
+      { status: 200 },
+    );
   }
 
   return { handleToggle };

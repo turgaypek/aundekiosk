@@ -60,6 +60,7 @@ export function createHandler(options: HandlerOptions = {}) {
       credentialStore: createCredentialStore({ storePath: authStorePath }),
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
     runPrivilegedToggle: async (action) => {
       await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-ssh.sh", action]);
     },
@@ -72,6 +73,7 @@ export function createHandler(options: HandlerOptions = {}) {
       credentialStore: createCredentialStore({ storePath: authStorePath }),
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
     runPrivilegedChange: async (newPassword) => {
       await runPrivilegedCommand(
         "sudo",
@@ -85,6 +87,7 @@ export function createHandler(options: HandlerOptions = {}) {
       credentialStore: createCredentialStore({ storePath: authStorePath }),
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
     runPrivilegedApply: async (payload) => {
       await runPrivilegedCommand(
         "sudo",
@@ -101,6 +104,7 @@ export function createHandler(options: HandlerOptions = {}) {
       credentialStore: createCredentialStore({ storePath: authStorePath }),
       auditLog: createAuditLog({ logPath: auditLogPath }),
     }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
     runPrivilegedConfigure: async (payload) => {
       await runPrivilegedCommand(
         "sudo",

@@ -1,4 +1,5 @@
 import type { createStepUpGuard } from "./auth/step_up.ts";
+import type { createAuditLog } from "./auth/audit_log.ts";
 import { requireStepUp } from "./auth/require_step_up.ts";
 
 const VALID_AUTH_PROTOCOLS = new Set(["SHA", "SHA-256"]);
@@ -53,6 +54,10 @@ function validateSnmpPayload(body: Record<string, unknown>): string | null {
 
 export interface SnmpApiOptions {
   stepUpGuard: ReturnType<typeof createStepUpGuard>;
+  // Spec §6 requires every privileged action to be audit-logged with
+  // who did it, from where, and whether it succeeded (final review:
+  // Important I6).
+  auditLog: ReturnType<typeof createAuditLog>;
   // Injected for testability; server.ts supplies the real sudo-based
   // caller, which pipes the payload (including both passphrases) to
   // configure-snmp.sh over stdin as JSON, never as command-line arguments.
@@ -60,7 +65,7 @@ export interface SnmpApiOptions {
 }
 
 export function createSnmpApi(opts: SnmpApiOptions) {
-  const { stepUpGuard, runPrivilegedConfigure } = opts;
+  const { stepUpGuard, auditLog, runPrivilegedConfigure } = opts;
 
   async function handleConfigure(req: Request, username: string, ip: string): Promise<Response> {
     let body: unknown;
@@ -82,7 +87,15 @@ export function createSnmpApi(opts: SnmpApiOptions) {
     }
 
     const { confirmPassword: _confirmPassword, ...payload } = record;
-    await runPrivilegedConfigure(payload);
+    const enabled = payload.enabled !== false;
+    try {
+      await runPrivilegedConfigure(payload);
+    } catch (error) {
+      await auditLog.record("snmp_configured", { username, ip, enabled, ok: false });
+      throw error;
+    }
+
+    await auditLog.record("snmp_configured", { username, ip, enabled, ok: true });
     return new Response("SNMP configuration updated.", { status: 200 });
   }
 

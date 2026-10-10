@@ -1,4 +1,5 @@
 import type { createStepUpGuard } from "./auth/step_up.ts";
+import type { createAuditLog } from "./auth/audit_log.ts";
 import { requireStepUp } from "./auth/require_step_up.ts";
 
 const MIN_OS_PASSWORD_LENGTH = 12;
@@ -12,6 +13,10 @@ function containsNewline(value: string): boolean {
 
 export interface OsPasswordApiOptions {
   stepUpGuard: ReturnType<typeof createStepUpGuard>;
+  // Spec §6 requires every privileged action to be audit-logged with
+  // who did it, from where, and whether it succeeded (final review:
+  // Important I6).
+  auditLog: ReturnType<typeof createAuditLog>;
   // Injected for testability — server.ts supplies the real sudo-based
   // caller, which pipes { username, newPassword } to change-os-password.sh
   // over stdin (never as a command-line argument).
@@ -19,7 +24,7 @@ export interface OsPasswordApiOptions {
 }
 
 export function createOsPasswordApi(opts: OsPasswordApiOptions) {
-  const { stepUpGuard, runPrivilegedChange } = opts;
+  const { stepUpGuard, auditLog, runPrivilegedChange } = opts;
 
   async function handleChange(req: Request, username: string, ip: string): Promise<Response> {
     let body: unknown;
@@ -42,7 +47,14 @@ export function createOsPasswordApi(opts: OsPasswordApiOptions) {
       return new Response("newPassword must not contain a newline.", { status: 400 });
     }
 
-    await runPrivilegedChange(newPassword);
+    try {
+      await runPrivilegedChange(newPassword);
+    } catch (error) {
+      await auditLog.record("os_password_changed", { username, ip, ok: false });
+      throw error;
+    }
+
+    await auditLog.record("os_password_changed", { username, ip, ok: true });
     return new Response("OS account password changed.", { status: 200 });
   }
 

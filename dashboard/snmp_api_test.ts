@@ -4,22 +4,35 @@ import { createAuditLog } from "./auth/audit_log.ts";
 import { createStepUpGuard } from "./auth/step_up.ts";
 import { assertEquals } from "./test_util.ts";
 
-async function withApi(fn: (api: ReturnType<typeof createSnmpApi>, calls: () => unknown[]) => Promise<void>) {
+async function withApi(
+  fn: (api: ReturnType<typeof createSnmpApi>, calls: () => unknown[], dir: string) => Promise<void>,
+) {
   const dir = await Deno.makeTempDir();
   try {
     const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
     await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
-    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog: createAuditLog({ logPath: `${dir}/audit.log` }) });
+    const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
+    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog });
     const calls: unknown[] = [];
     const api = createSnmpApi({
       stepUpGuard,
+      auditLog,
       runPrivilegedConfigure: async (payload: unknown) => {
         calls.push(payload);
       },
     });
-    await fn(api, () => calls);
+    await fn(api, () => calls, dir);
   } finally {
     await Deno.remove(dir, { recursive: true });
+  }
+}
+
+async function readAuditEvents(dir: string): Promise<Record<string, unknown>[]> {
+  try {
+    const text = await Deno.readTextFile(`${dir}/audit.log`);
+    return text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  } catch {
+    return [];
   }
 }
 
@@ -42,7 +55,7 @@ function jsonRequest(body: unknown) {
 }
 
 Deno.test("handleConfigure with a valid SNMPv3 config and correct confirmPassword succeeds", async () => {
-  await withApi(async (api, calls) => {
+  await withApi(async (api, calls, dir) => {
     const res = await api.handleConfigure(
       jsonRequest({ ...VALID_SNMP_CONFIG, confirmPassword: "a-long-enough-password" }),
       "admin",
@@ -50,6 +63,16 @@ Deno.test("handleConfigure with a valid SNMPv3 config and correct confirmPasswor
     );
     assertEquals(res.status, 200);
     assertEquals(calls().length, 1);
+
+    // Final review (Important I6): spec §6 requires every privileged
+    // action to be audit-logged with who did it, from where, and
+    // whether it succeeded.
+    const events = await readAuditEvents(dir);
+    const event = events.find((e) => e.event === "snmp_configured");
+    assertEquals(event !== undefined, true);
+    assertEquals(event?.username, "admin");
+    assertEquals(event?.ip, "203.0.113.1");
+    assertEquals(event?.ok, true);
   });
 });
 

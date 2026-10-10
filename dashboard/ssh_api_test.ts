@@ -16,11 +16,13 @@ async function withApi(
   try {
     const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
     await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
-    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog: createAuditLog({ logPath: `${dir}/audit.log` }) });
+    const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
+    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog });
     const calls: string[] = [];
     const passwordAuthCalls: string[] = [];
     const api = createSshApi({
       stepUpGuard,
+      auditLog,
       runPrivilegedToggle: async (action: string) => {
         calls.push(action);
       },
@@ -34,6 +36,15 @@ async function withApi(
   }
 }
 
+async function readAuditEvents(dir: string): Promise<Record<string, unknown>[]> {
+  try {
+    const text = await Deno.readTextFile(`${dir}/audit.log`);
+    return text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  } catch {
+    return [];
+  }
+}
+
 function jsonRequest(body: unknown) {
   return new Request("http://localhost/ssh-config", {
     method: "POST",
@@ -43,7 +54,7 @@ function jsonRequest(body: unknown) {
 }
 
 Deno.test("handleToggle with the correct confirmPassword invokes the privileged toggle", async () => {
-  await withApi(async (api, _dir, calls) => {
+  await withApi(async (api, dir, calls) => {
     const res = await api.handleToggle(
       jsonRequest({ action: "enable", confirmPassword: "a-long-enough-password" }),
       "admin",
@@ -51,6 +62,17 @@ Deno.test("handleToggle with the correct confirmPassword invokes the privileged 
     );
     assertEquals(res.status, 200);
     assertEquals(JSON.stringify(calls()), JSON.stringify(["enable"]));
+
+    // Final review (Important I6): spec §6 requires every privileged
+    // action — not just login/step-up — to be audit-logged with who did
+    // it, from where, and whether it succeeded.
+    const events = await readAuditEvents(dir);
+    const sshEvent = events.find((e) => e.event === "ssh_toggled");
+    assertEquals(sshEvent !== undefined, true);
+    assertEquals(sshEvent?.username, "admin");
+    assertEquals(sshEvent?.ip, "203.0.113.1");
+    assertEquals(sshEvent?.action, "enable");
+    assertEquals(sshEvent?.ok, true);
   });
 });
 
@@ -115,6 +137,40 @@ Deno.test("handleToggle with target 'password_auth' and a wrong confirmPassword 
     assertEquals(res.status, 403);
     assertEquals(passwordAuthCalls().length, 0);
   });
+});
+
+Deno.test("handleToggle audit-logs a failed privileged toggle with ok:false", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
+    await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
+    const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
+    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog });
+    const api = createSshApi({
+      stepUpGuard,
+      auditLog,
+      runPrivilegedToggle: async () => {
+        throw new Error("toggle-ssh.sh failed: simulated");
+      },
+      runPrivilegedPasswordAuthToggle: async () => {},
+    });
+    let threw = false;
+    try {
+      await api.handleToggle(
+        jsonRequest({ action: "enable", confirmPassword: "a-long-enough-password" }),
+        "admin",
+        "203.0.113.1",
+      );
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true);
+    const events = await readAuditEvents(dir);
+    const sshEvent = events.find((e) => e.event === "ssh_toggled");
+    assertEquals(sshEvent?.ok, false);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });
 
 Deno.test("handleToggle rejects a target outside service/password_auth", async () => {

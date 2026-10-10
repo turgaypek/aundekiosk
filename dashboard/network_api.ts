@@ -1,4 +1,5 @@
 import type { createStepUpGuard } from "./auth/step_up.ts";
+import type { createAuditLog } from "./auth/audit_log.ts";
 import { requireStepUp } from "./auth/require_step_up.ts";
 import { PrivilegedCommandError } from "./privileged_runner.ts";
 
@@ -61,6 +62,10 @@ function validateNetworkPayload(body: Record<string, unknown>): string | null {
 
 export interface NetworkApiOptions {
   stepUpGuard: ReturnType<typeof createStepUpGuard>;
+  // Spec §6 requires every privileged action to be audit-logged with
+  // who did it, from where, and whether it succeeded (final review:
+  // Important I6).
+  auditLog: ReturnType<typeof createAuditLog>;
   // Both injected for testability; server.ts supplies real sudo-based
   // callers. runPrivilegedApply pipes the validated payload to
   // apply-network-config.sh over stdin as JSON.
@@ -69,7 +74,7 @@ export interface NetworkApiOptions {
 }
 
 export function createNetworkApi(opts: NetworkApiOptions) {
-  const { stepUpGuard, runPrivilegedApply, runPrivilegedConfirm } = opts;
+  const { stepUpGuard, auditLog, runPrivilegedApply, runPrivilegedConfirm } = opts;
 
   async function handleApply(req: Request, username: string, ip: string): Promise<Response> {
     let body: unknown;
@@ -90,7 +95,7 @@ export function createNetworkApi(opts: NetworkApiOptions) {
       return new Response(stepUp.message, { status: stepUp.status });
     }
 
-    await runPrivilegedApply({
+    const payload: NetworkConfigPayload = {
       interface: record.interface as string,
       mode: record.mode as string,
       staticIp: (record.staticIp as string | null) ?? null,
@@ -98,8 +103,28 @@ export function createNetworkApi(opts: NetworkApiOptions) {
       dns: (record.dns as string | null) ?? null,
       wifiSsid: (record.wifiSsid as string | null) ?? null,
       wifiPassword: (record.wifiPassword as string | null) ?? null,
-    });
+    };
 
+    try {
+      await runPrivilegedApply(payload);
+    } catch (error) {
+      await auditLog.record("network_config_applied", {
+        username,
+        ip,
+        interface: payload.interface,
+        mode: payload.mode,
+        ok: false,
+      });
+      throw error;
+    }
+
+    await auditLog.record("network_config_applied", {
+      username,
+      ip,
+      interface: payload.interface,
+      mode: payload.mode,
+      ok: true,
+    });
     return new Response(
       "Network configuration applied. It will automatically revert in 60 seconds unless you confirm access.",
       { status: 200 },
@@ -128,10 +153,13 @@ export function createNetworkApi(opts: NetworkApiOptions) {
       // — report that as a distinct outcome, not a bare 200 the user
       // never actually got (final review: Important I8).
       if (error instanceof PrivilegedCommandError && error.code === 2) {
+        await auditLog.record("network_config_confirmed", { username, ip, ok: false, reason: "nothing_pending" });
         return new Response("Network configuration was already rolled back (nothing was pending).", { status: 409 });
       }
+      await auditLog.record("network_config_confirmed", { username, ip, ok: false });
       throw error;
     }
+    await auditLog.record("network_config_confirmed", { username, ip, ok: true });
     return new Response("Network configuration confirmed.", { status: 200 });
   }
 

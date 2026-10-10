@@ -10,17 +10,20 @@ async function withApi(
     api: ReturnType<typeof createNetworkApi>,
     applyCalls: () => unknown[],
     confirmCalls: () => number,
+    dir: string,
   ) => Promise<void>,
 ) {
   const dir = await Deno.makeTempDir();
   try {
     const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
     await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
-    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog: createAuditLog({ logPath: `${dir}/audit.log` }) });
+    const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
+    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog });
     const applyCalls: unknown[] = [];
     let confirmCalls = 0;
     const api = createNetworkApi({
       stepUpGuard,
+      auditLog,
       runPrivilegedApply: async (payload: unknown) => {
         applyCalls.push(payload);
       },
@@ -28,9 +31,18 @@ async function withApi(
         confirmCalls++;
       },
     });
-    await fn(api, () => applyCalls, () => confirmCalls);
+    await fn(api, () => applyCalls, () => confirmCalls, dir);
   } finally {
     await Deno.remove(dir, { recursive: true });
+  }
+}
+
+async function readAuditEvents(dir: string): Promise<Record<string, unknown>[]> {
+  try {
+    const text = await Deno.readTextFile(`${dir}/audit.log`);
+    return text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  } catch {
+    return [];
   }
 }
 
@@ -53,7 +65,7 @@ function jsonRequest(path: string, body: unknown) {
 }
 
 Deno.test("handleApply with a valid config and correct confirmPassword invokes the privileged apply", async () => {
-  await withApi(async (api, applyCalls) => {
+  await withApi(async (api, applyCalls, _confirmCalls, dir) => {
     const res = await api.handleApply(
       jsonRequest("/network-config", { ...VALID_NETWORK_CONFIG, confirmPassword: "a-long-enough-password" }),
       "admin",
@@ -61,6 +73,16 @@ Deno.test("handleApply with a valid config and correct confirmPassword invokes t
     );
     assertEquals(res.status, 200);
     assertEquals(applyCalls().length, 1);
+
+    // Final review (Important I6): spec §6 requires every privileged
+    // action to be audit-logged with who did it, from where, and
+    // whether it succeeded.
+    const events = await readAuditEvents(dir);
+    const event = events.find((e) => e.event === "network_config_applied");
+    assertEquals(event !== undefined, true);
+    assertEquals(event?.username, "admin");
+    assertEquals(event?.ip, "203.0.113.1");
+    assertEquals(event?.ok, true);
   });
 });
 
@@ -93,7 +115,7 @@ Deno.test("handleApply rejects an invalid interface before step-up even matters"
 });
 
 Deno.test("handleConfirm with the correct confirmPassword invokes the privileged confirm", async () => {
-  await withApi(async (api, _applyCalls, confirmCalls) => {
+  await withApi(async (api, _applyCalls, confirmCalls, dir) => {
     const res = await api.handleConfirm(
       jsonRequest("/network-confirm", { confirmPassword: "a-long-enough-password" }),
       "admin",
@@ -101,6 +123,11 @@ Deno.test("handleConfirm with the correct confirmPassword invokes the privileged
     );
     assertEquals(res.status, 200);
     assertEquals(confirmCalls(), 1);
+
+    const events = await readAuditEvents(dir);
+    const event = events.find((e) => e.event === "network_config_confirmed");
+    assertEquals(event !== undefined, true);
+    assertEquals(event?.ok, true);
   });
 });
 
@@ -113,9 +140,11 @@ Deno.test("handleConfirm returns 409 when nothing was pending (already rolled ba
   try {
     const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
     await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
-    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog: createAuditLog({ logPath: `${dir}/audit.log` }) });
+    const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
+    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog });
     const api = createNetworkApi({
       stepUpGuard,
+      auditLog,
       runPrivilegedApply: async () => {},
       runPrivilegedConfirm: async () => {
         throw new PrivilegedCommandError("confirm-network-config.sh failed: no pending rollback", 2);
