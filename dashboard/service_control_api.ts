@@ -1,6 +1,4 @@
-import type { createStepUpGuard } from "./auth/step_up.ts";
 import type { createAuditLog } from "./auth/audit_log.ts";
-import { requireStepUp } from "./auth/require_step_up.ts";
 
 const VALID_SERVICES = [
   "aundekiosk-dashboard",
@@ -11,9 +9,12 @@ const VALID_SERVICES = [
 const VALID_SERVICE_SET = new Set<string>(VALID_SERVICES);
 
 export interface ServiceControlApiOptions {
-  stepUpGuard: ReturnType<typeof createStepUpGuard>;
   // Spec §6 requires every privileged action to be audit-logged with
-  // who did it, from where, and whether it succeeded.
+  // who did it, from where, and whether it succeeded. No step-up
+  // re-authentication here (unlike SSH/network/SNMP/OS-password): the
+  // dashboard session itself already requires login, and the risk of a
+  // wrong click is just restarting one of four known services, not
+  // leaking a credential or changing who can reach the box.
   auditLog: ReturnType<typeof createAuditLog>;
   // Injected for testability; server.ts supplies the real sudo-based
   // caller for the actual start/stop (toggle-service.sh), and a plain
@@ -24,7 +25,7 @@ export interface ServiceControlApiOptions {
 }
 
 export function createServiceControlApi(opts: ServiceControlApiOptions) {
-  const { stepUpGuard, auditLog, runPrivilegedToggle, checkServiceStatus } = opts;
+  const { auditLog, runPrivilegedToggle, checkServiceStatus } = opts;
 
   async function handleStatus(): Promise<Response> {
     const statuses: Record<string, string> = {};
@@ -41,18 +42,13 @@ export function createServiceControlApi(opts: ServiceControlApiOptions) {
     } catch {
       return new Response("Invalid JSON.", { status: 400 });
     }
-    const { service, action, confirmPassword } = body as Record<string, unknown>;
+    const { service, action } = body as Record<string, unknown>;
 
     if (typeof service !== "string" || !VALID_SERVICE_SET.has(service)) {
       return new Response("service must be one of the four AundeKiosk units.", { status: 400 });
     }
     if (action !== "start" && action !== "stop") {
       return new Response("action must be 'start' or 'stop'.", { status: 400 });
-    }
-
-    const stepUp = await requireStepUp(stepUpGuard, username, confirmPassword, ip);
-    if (!stepUp.ok) {
-      return new Response(stepUp.message, { status: stepUp.status });
     }
 
     try {

@@ -1,6 +1,7 @@
 {
   "app_title": "AundeKiosk",
   "nav_add_placeholder": "...fügen Sie Webseiten-URLs als Bildschirme hinzu",
+  "url_duration_placeholder": "Dauer (Sek.)",
   "nav_add_button": "HINZUFÜGEN",
   "nav_apply_button": "ANWENDEN",
   "setup_heading": "Administratorkonto einrichten",
@@ -21,7 +22,6 @@
   "service_name_runner": "Kiosk-Runner",
   "service_name_switcher": "Kiosk-Switcher",
   "service_stop_dashboard_warning": "Wenn Sie das Dashboard stoppen, verlieren Sie Ihren eigenen Zugriff, bis es über SSH oder physischen Zugriff auf das Gerät neu gestartet wird. Fortfahren?",
-  "service_confirm_password_prompt": "Geben Sie Ihr aktuelles Passwort zur Bestätigung erneut ein:",
   "monitor_heading": "Ressourcenüberwachung",
   "monitor_interval_label": "Messintervall (Sekunden)",
   "monitor_window_start_label": "Überwachung ab",

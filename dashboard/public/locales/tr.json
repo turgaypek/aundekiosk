@@ -1,6 +1,7 @@
 {
   "app_title": "AundeKiosk",
   "nav_add_placeholder": "...ekranlara eklemek için web sayfası URL'leri girin",
+  "url_duration_placeholder": "Süre (sn)",
   "nav_add_button": "EKLE",
   "nav_apply_button": "UYGULA",
   "setup_heading": "Yönetici hesabını oluşturun",
@@ -21,7 +22,6 @@
   "service_name_runner": "Kiosk Çalıştırıcı",
   "service_name_switcher": "Kiosk Geçiş Yöneticisi",
   "service_stop_dashboard_warning": "Yönetim panelini durdurursanız, yeniden başlatılana kadar (SSH veya cihaza fiziksel erişimle) kendi erişiminizi kaybedersiniz. Devam edilsin mi?",
-  "service_confirm_password_prompt": "Onaylamak için mevcut şifrenizi tekrar girin:",
   "monitor_heading": "Kaynak İzleyici",
   "monitor_interval_label": "Ölçüm aralığı (saniye)",
   "monitor_window_start_label": "İzleme başlangıcı",

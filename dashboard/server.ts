@@ -115,10 +115,6 @@ export function createHandler(options: HandlerOptions = {}) {
     },
   });
   const serviceControlApi = createServiceControlApi({
-    stepUpGuard: createStepUpGuard({
-      credentialStore: createCredentialStore({ storePath: authStorePath }),
-      auditLog: createAuditLog({ logPath: auditLogPath }),
-    }),
     auditLog: createAuditLog({ logPath: auditLogPath }),
     runPrivilegedToggle: async (service, action) => {
       await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-service.sh", service, action]);

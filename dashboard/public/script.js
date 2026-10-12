@@ -8,7 +8,7 @@ function renderUrlRow(entry) {
   const link = row.querySelector("a");
   link.href = entry.url;
   link.textContent = entry.url;
-  row.dataset.duration = entry.duration;
+  row.querySelector(".url-duration").value = entry.duration;
   row.dataset.cycles = entry.cycles;
   // Translates this row's own data-i18n elements (the Remove button) —
   // i18n.js's one-time page-load scan never reaches content cloned out
@@ -33,7 +33,7 @@ async function applyConfig() {
   const list = document.querySelector("#urls ul");
   const urls = [...list.children].map((row) => ({
     url: row.querySelector("a").href,
-    duration: Number(row.dataset.duration) || 10,
+    duration: Number(row.querySelector(".url-duration").value) || 10,
     cycles: Number(row.dataset.cycles) || 0,
   }));
   const res = await fetch("/config", {
@@ -94,22 +94,19 @@ async function loadServiceStatus() {
 async function toggleService(service, action) {
   // Stopping the dashboard cuts off the admin's own access immediately
   // — systemd's Restart=on-failure only fires on a crash, never on a
-  // deliberate stop — so this needs an extra, explicit warning on top
-  // of the step-up re-auth every other toggle already requires.
+  // deliberate stop — so this still needs an explicit warning, even
+  // though toggling no longer requires re-entering a password.
   if (service === "aundekiosk-dashboard" && action === "stop") {
     const warning = window.aundekiosk?.t?.("service_stop_dashboard_warning");
     if (!confirm(warning || "Stopping the dashboard will cut off your own access until it is restarted via SSH or physical access. Continue?")) {
       return;
     }
   }
-  const promptText = window.aundekiosk?.t?.("service_confirm_password_prompt");
-  const confirmPassword = prompt(promptText || "Re-enter your current password to confirm:");
-  if (!confirmPassword) return;
 
   const res = await fetch("/service-control", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ service, action, confirmPassword }),
+    body: JSON.stringify({ service, action }),
   });
   const message = await res.text();
   alert(message);

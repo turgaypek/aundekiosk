@@ -1,7 +1,5 @@
 import { createServiceControlApi } from "./service_control_api.ts";
-import { createCredentialStore } from "./auth/credential_store.ts";
 import { createAuditLog } from "./auth/audit_log.ts";
-import { createStepUpGuard } from "./auth/step_up.ts";
 import { assertEquals } from "./test_util.ts";
 
 async function withApi(
@@ -13,13 +11,9 @@ async function withApi(
 ) {
   const dir = await Deno.makeTempDir();
   try {
-    const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
-    await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
     const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
-    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog });
     const calls: { service: string; action: string }[] = [];
     const api = createServiceControlApi({
-      stepUpGuard,
       auditLog,
       runPrivilegedToggle: async (service: string, action: "start" | "stop") => {
         calls.push({ service, action });
@@ -61,10 +55,10 @@ Deno.test("handleStatus returns the status of all four AundeKiosk services", asy
   });
 });
 
-Deno.test("handleToggle with the correct confirmPassword invokes the privileged toggle", async () => {
+Deno.test("handleToggle invokes the privileged toggle without requiring a confirmPassword", async () => {
   await withApi(async (api, calls, dir) => {
     const res = await api.handleToggle(
-      jsonRequest({ service: "aundekiosk-runner", action: "stop", confirmPassword: "a-long-enough-password" }),
+      jsonRequest({ service: "aundekiosk-runner", action: "stop" }),
       "admin",
       "203.0.113.1",
     );
@@ -82,22 +76,10 @@ Deno.test("handleToggle with the correct confirmPassword invokes the privileged 
   });
 });
 
-Deno.test("handleToggle with a wrong confirmPassword returns 403 and never invokes the privileged toggle", async () => {
-  await withApi(async (api, calls) => {
-    const res = await api.handleToggle(
-      jsonRequest({ service: "aundekiosk-runner", action: "stop", confirmPassword: "wrong" }),
-      "admin",
-      "203.0.113.1",
-    );
-    assertEquals(res.status, 403);
-    assertEquals(calls().length, 0);
-  });
-});
-
 Deno.test("handleToggle rejects a service outside the four AundeKiosk units", async () => {
   await withApi(async (api, calls) => {
     const res = await api.handleToggle(
-      jsonRequest({ service: "sshd", action: "stop", confirmPassword: "a-long-enough-password" }),
+      jsonRequest({ service: "sshd", action: "stop" }),
       "admin",
       "203.0.113.1",
     );
@@ -109,7 +91,7 @@ Deno.test("handleToggle rejects a service outside the four AundeKiosk units", as
 Deno.test("handleToggle rejects an action outside start/stop", async () => {
   await withApi(async (api, calls) => {
     const res = await api.handleToggle(
-      jsonRequest({ service: "aundekiosk-runner", action: "restart", confirmPassword: "a-long-enough-password" }),
+      jsonRequest({ service: "aundekiosk-runner", action: "restart" }),
       "admin",
       "203.0.113.1",
     );
@@ -121,12 +103,8 @@ Deno.test("handleToggle rejects an action outside start/stop", async () => {
 Deno.test("handleToggle audit-logs a failed privileged toggle with ok:false", async () => {
   const dir = await Deno.makeTempDir();
   try {
-    const credentialStore = createCredentialStore({ storePath: `${dir}/auth.db` });
-    await credentialStore.createInitialAdmin("admin", "a-long-enough-password");
     const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
-    const stepUpGuard = createStepUpGuard({ credentialStore, auditLog });
     const api = createServiceControlApi({
-      stepUpGuard,
       auditLog,
       runPrivilegedToggle: async () => {
         throw new Error("toggle-service.sh failed: simulated");
@@ -136,7 +114,7 @@ Deno.test("handleToggle audit-logs a failed privileged toggle with ok:false", as
     let threw = false;
     try {
       await api.handleToggle(
-        jsonRequest({ service: "aundekiosk-runner", action: "stop", confirmPassword: "a-long-enough-password" }),
+        jsonRequest({ service: "aundekiosk-runner", action: "stop" }),
         "admin",
         "203.0.113.1",
       );
