@@ -59,7 +59,24 @@ export XDOTOOL_LOG="$WORKDIR/xdotool.log"
 unset WAYLAND_DISPLAY || true
 export DISPLAY=":0"
 
-PATH="$FAKE_BIN:$PATH" timeout 3 bash "$SWITCHER" > "$WORKDIR/output_refresh.txt" 2>&1 || true
+PATH="$FAKE_BIN:$PATH" timeout 20 bash "$SWITCHER" > "$WORKDIR/output_refresh.txt" 2>&1 &
+SWITCHER_PID=$!
+
+# Poll for the whole 3-step navigate_to_url sequence (ctrl+l, type,
+# Return — each its own xdotool subprocess) to finish, not just its
+# first step: killing right after the first write races the remaining
+# two, which previously made this test flake. How long process/
+# subprocess spawn takes (several jq calls per loop iteration, now that
+# duration/cycles/url are read live every time) varies a lot by
+# machine, so this polls instead of assuming a fixed timeout is enough.
+waited=0
+while ! grep -q "xdotool key Return" "$XDOTOOL_LOG" 2>/dev/null && (( waited < 150 )); do
+  sleep 0.1
+  waited=$(( waited + 1 ))
+done
+
+kill "$SWITCHER_PID" 2>/dev/null || true
+wait "$SWITCHER_PID" 2>/dev/null || true
 
 grep -q "xdotool key ctrl+l" "$XDOTOOL_LOG"
 assert_status 0 $? "switcher.sh opens the address bar (ctrl+l) to refresh, instead of sending a plain reload"
