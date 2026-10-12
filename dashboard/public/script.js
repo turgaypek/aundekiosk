@@ -165,6 +165,49 @@ async function saveMonitorConfig() {
   if (res.ok) await loadMonitorConfig();
 }
 
+const MONITOR_EVENT_LOCALE_BY_LANG = { tr: "tr-TR", en: "en-US", de: "de-DE" };
+
+// Each tier's threshold applies to CPU and RAM independently (same
+// number, two separate checks — see monitor/resource-monitor.sh) with
+// no other way for an admin to tell which one actually fired, since the
+// dashboard's tier rows only ever show the configured threshold, never
+// a live reading. This renders monitor/resource-monitor.sh's own audit
+// trail (via GET /monitor-events) into a plain sentence per event.
+function formatMonitorEvent(event) {
+  const lang = document.getElementById("lang-switch")?.value || "tr";
+  const locale = MONITOR_EVENT_LOCALE_BY_LANG[lang] || lang;
+  const time = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "medium" }).format(new Date(event.timestamp));
+  const action = window.aundekiosk?.t?.(`monitor_action_${event.action}`) ?? event.action;
+
+  if (event.event === "threshold_triggered") {
+    const metric = event.metric === "cpu" ? "CPU" : event.metric === "ram" ? "RAM" : event.metric;
+    return window.aundekiosk?.t?.("monitor_event_threshold_triggered", { time, metric, value: event.value, threshold: event.threshold, action });
+  }
+  if (event.event === "action_executed") {
+    return window.aundekiosk?.t?.("monitor_event_action_executed", { time, action });
+  }
+  if (event.event === "action_suppressed_startup_grace") {
+    return window.aundekiosk?.t?.("monitor_event_action_suppressed", { time, action });
+  }
+  return `${time} — ${event.event}`;
+}
+
+async function loadMonitorEvents() {
+  const list = document.getElementById("monitor-events-list");
+  if (!list) return;
+  const res = await fetch("/monitor-events");
+  if (!res.ok) return;
+  const events = await res.json();
+  list.innerHTML = "";
+  document.getElementById("monitor-events-empty").hidden = events.length > 0;
+  for (const event of events) {
+    const li = document.createElement("li");
+    li.className = "list-group-item";
+    li.textContent = formatMonitorEvent(event);
+    list.appendChild(li);
+  }
+}
+
 if (typeof document !== "undefined") {
   document.getElementById("add-url")?.addEventListener("click", () => {
     const input = document.getElementById("new-url");
@@ -187,4 +230,5 @@ if (typeof document !== "undefined") {
   window.aundekiosk.loadConfig = loadConfig;
   window.aundekiosk.loadServiceStatus = loadServiceStatus;
   window.aundekiosk.loadMonitorConfig = loadMonitorConfig;
+  window.aundekiosk.loadMonitorEvents = loadMonitorEvents;
 }

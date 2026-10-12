@@ -42,5 +42,10 @@
   "monitor_tier_threshold_label": "Eşik %",
   "monitor_tier_samples_label": "Ölçüm Sayısı",
   "monitor_tier_action_label": "İşlem",
-  "monitor_tier_cooldown_label": "Bekleme (sn)"
+  "monitor_tier_cooldown_label": "Bekleme (sn)",
+  "monitor_events_heading": "Son İzleme Olayları",
+  "monitor_events_empty": "Henüz bir olay kaydedilmedi.",
+  "monitor_event_threshold_triggered": "{time} — {metric} %{value} ≥ %{threshold} eşiği → {action}",
+  "monitor_event_action_executed": "{time} — {action} çalıştırıldı",
+  "monitor_event_action_suppressed": "{time} — {action} başlangıç süresi nedeniyle ertelendi"
 }

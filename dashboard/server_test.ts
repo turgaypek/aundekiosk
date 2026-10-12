@@ -337,3 +337,19 @@ Deno.test("POST /service-control without a session returns 401", async () => {
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+Deno.test("GET /monitor-events without a session returns 401, never the event data", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(new Request("http://localhost/monitor-events"));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

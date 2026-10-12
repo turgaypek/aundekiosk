@@ -42,5 +42,10 @@
   "monitor_tier_threshold_label": "Schwelle %",
   "monitor_tier_samples_label": "Messungen",
   "monitor_tier_action_label": "Aktion",
-  "monitor_tier_cooldown_label": "Abklingzeit (s)"
+  "monitor_tier_cooldown_label": "Abklingzeit (s)",
+  "monitor_events_heading": "Letzte Überwachungsereignisse",
+  "monitor_events_empty": "Noch keine Ereignisse aufgezeichnet.",
+  "monitor_event_threshold_triggered": "{time} — {metric} {value}% ≥ {threshold}% Schwellenwert → {action}",
+  "monitor_event_action_executed": "{time} — {action} ausgeführt",
+  "monitor_event_action_suppressed": "{time} — {action} wegen Startphase unterdrückt"
 }

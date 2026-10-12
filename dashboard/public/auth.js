@@ -43,6 +43,9 @@ async function bootstrapAuth() {
     if (state === "app" && window.aundekiosk?.loadMonitorConfig) {
       window.aundekiosk.loadMonitorConfig();
     }
+    if (state === "app" && window.aundekiosk?.loadMonitorEvents) {
+      window.aundekiosk.loadMonitorEvents();
+    }
   }
 
   const setupForm = document.getElementById("setup-form");

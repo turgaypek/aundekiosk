@@ -12,6 +12,7 @@ import { createOsPasswordApi } from "./os_password_api.ts";
 import { createNetworkApi } from "./network_api.ts";
 import { createSnmpApi } from "./snmp_api.ts";
 import { createServiceControlApi } from "./service_control_api.ts";
+import { createMonitorEventsApi } from "./monitor_events_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
@@ -128,6 +129,7 @@ export function createHandler(options: HandlerOptions = {}) {
       return new TextDecoder().decode(stdout).trim();
     },
   });
+  const monitorEventsApi = createMonitorEventsApi({ auditLogPath });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -221,6 +223,13 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return serviceControlApi.handleToggle(req, session.username, ip);
+    }
+
+    if (url.pathname === "/monitor-events" && req.method === "GET") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return monitorEventsApi.handleGet();
     }
 
     return serveStatic(url.pathname);
