@@ -11,6 +11,7 @@ import { createSshApi } from "./ssh_api.ts";
 import { createOsPasswordApi } from "./os_password_api.ts";
 import { createNetworkApi } from "./network_api.ts";
 import { createSnmpApi } from "./snmp_api.ts";
+import { createServiceControlApi } from "./service_control_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
@@ -113,6 +114,24 @@ export function createHandler(options: HandlerOptions = {}) {
       );
     },
   });
+  const serviceControlApi = createServiceControlApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
+    runPrivilegedToggle: async (service, action) => {
+      await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-service.sh", service, action]);
+    },
+    // Reading a unit's status needs no elevated privilege — any local
+    // user can query systemd over the system bus — so this runs
+    // directly, never through sudo/toggle-service.sh.
+    checkServiceStatus: async (service) => {
+      const command = new Deno.Command("systemctl", { args: ["is-active", service], stdout: "piped", stderr: "piped" });
+      const { stdout } = await command.output();
+      return new TextDecoder().decode(stdout).trim();
+    },
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -191,6 +210,21 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return snmpApi.handleConfigure(req, session.username, ip);
+    }
+
+    if (url.pathname === "/service-status" && req.method === "GET") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return serviceControlApi.handleStatus();
+    }
+
+    if (url.pathname === "/service-control" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return serviceControlApi.handleToggle(req, session.username, ip);
     }
 
     return serveStatic(url.pathname);
