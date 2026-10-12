@@ -67,6 +67,14 @@ if [ ! -f "$AUNDEKIOSK_CONFIG_FILE" ]; then
     cp "$AUNDEKIOSK_INSTALL_DIR/config.json.sample" "$AUNDEKIOSK_CONFIG_FILE"
     msg "$DEBUG" "Created default config.json from sample."
 fi
+# Self-heal a config.json left mode 600 by the dashboard's UMask=0077
+# before config_api.ts's handlePost started chmodding its own writes to
+# 0644 — otherwise a Pi that already hit this bug stays broken until the
+# dashboard happens to rewrite the file again. Safe on every run: config.json
+# holds no secrets, only display URLs/durations.
+if [ -f "$AUNDEKIOSK_CONFIG_FILE" ]; then
+    chmod 644 "$AUNDEKIOSK_CONFIG_FILE"
+fi
 
 msg "$INFO" "Setting up resource monitor configuration..."
 AUNDEKIOSK_MONITOR_CONFIG_FILE="$AUNDEKIOSK_INSTALL_DIR/monitor-config.json"

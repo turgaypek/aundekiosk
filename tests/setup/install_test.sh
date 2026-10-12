@@ -98,6 +98,16 @@ assert_status 0 $? "install.sh keeps .git root-owned so a root-run git pull neve
 grep -qE '^systemctl restart aundekiosk-dashboard\.service aundekiosk-monitor\.service$' "$INSTALL_SH"
 assert_status 0 $? "install.sh restarts (not just starts) the dashboard/monitor services, so an update actually takes effect"
 
+# Found on the real Pi: the dashboard's UMask=0077 makes any config.json it
+# writes mode 600 (aundekiosk-only), unreadable by the "pi" user that runs
+# the kiosk display — config_api.ts's handlePost now chmods its own writes
+# to 0644, but a Pi that already hit this bug (before that fix shipped) has
+# a 600 config.json sitting on disk that no future dashboard write will ever
+# touch again until the user changes something. update.sh re-runs
+# install.sh, so this must self-heal on every update, not just fresh installs.
+grep -qE 'chmod 644 "\$AUNDEKIOSK_CONFIG_FILE"' "$INSTALL_SH"
+assert_status 0 $? "install.sh self-heals an already-broken (mode 600) config.json back to world-readable"
+
 UPDATE_SH="$SCRIPT_DIR/../../scripts/setup/update.sh"
 [[ -f "$UPDATE_SH" ]]
 assert_status 0 $? "scripts/setup/update.sh exists"

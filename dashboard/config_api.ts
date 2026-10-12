@@ -93,6 +93,17 @@ export function createConfigApi(opts: ConfigApiOptions) {
     // filesystem, so readers always see either the old or the new content.
     const tmpPath = `${configPath}.tmp-${crypto.randomUUID()}`;
     await Deno.writeTextFile(tmpPath, JSON.stringify(normalized, null, 2));
+    // The dashboard service runs with UMask=0077 (so audit.log/auth.db,
+    // which hold real secrets, can never end up world-readable) — but that
+    // umask also applies here, leaving config.json mode 600 and unreadable
+    // by the "pi" user, which is who actually runs the kiosk display.
+    // config.json holds no secrets (just display URLs), so force it
+    // world-readable explicitly rather than relaxing the service's umask.
+    try {
+      await Deno.chmod(tmpPath, 0o644);
+    } catch {
+      // Deno.chmod is a no-op/unsupported on Windows; harmless to skip there.
+    }
     await Deno.rename(tmpPath, configPath);
     return new Response("Config saved.", { status: 200 });
   }

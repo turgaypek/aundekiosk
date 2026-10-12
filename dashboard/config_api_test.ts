@@ -179,3 +179,33 @@ Deno.test("POST does not leave a stray temp file behind after a successful save"
     assertEquals(JSON.stringify(entries), JSON.stringify(["config.json"]));
   });
 });
+
+// Found on the real Pi: the dashboard runs with UMask=0077 (so audit.log
+// and auth.db, which genuinely hold secrets, can never end up
+// world-readable) — but that same umask also made config.json mode 600,
+// readable only by the dashboard's own "aundekiosk" user. The kiosk
+// runner/switcher run as the Pi's own login user (e.g. "pi") and need
+// to READ this file — after the dashboard's very first write through
+// this endpoint, they lost the ability to, and the kiosk display went
+// dark on every reboot with "jq: ... Permission denied" in the journal.
+// config.json holds only display URLs/durations, nothing sensitive, so
+// making it world-readable (not group-readable, which would need a
+// group-membership change too) is the simplest correct fix.
+// Deno.FileInfo.mode is always null on Windows (no Unix permission
+// bits to report), so this assertion only runs where it can mean
+// anything — which is exactly the real deployment target (Linux).
+Deno.test("POST writes config.json with mode 0644 (world-readable), not the UMask-restricted default", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const api = createConfigApi({ configPath, samplePath: `${dir}/unused.json` });
+    const req = new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({ urls: [{ url: "https://b.test", duration: 10, cycles: 0 }] }),
+    });
+    await api.handlePost(req);
+    if (Deno.build.os !== "windows") {
+      const info = await Deno.stat(configPath);
+      assertEquals((info.mode ?? 0) & 0o777, 0o644);
+    }
+  });
+});
