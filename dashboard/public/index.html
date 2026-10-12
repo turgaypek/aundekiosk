@@ -99,8 +99,9 @@
     </section>
 
     <template id="template-url">
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <a target="_blank" rel="noopener"></a>
+      <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <a target="_blank" rel="noopener" class="me-auto"></a>
+        <input type="number" class="form-control url-duration" min="1" max="300" style="width: 90px" data-i18n-placeholder="url_duration_placeholder" />
         <button type="button" class="btn btn-sm btn-outline-danger remove-url" data-i18n="remove_button">Remove</button>
       </li>
     </template>
