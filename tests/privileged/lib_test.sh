@@ -167,4 +167,21 @@ else
   assert_eq "invalid" "invalid" "is_safe_secret_value rejects an embedded carriage return"
 fi
 
+
+# --- is_valid_aundekiosk_service ---
+for good in aundekiosk-dashboard aundekiosk-monitor aundekiosk-runner aundekiosk-switcher; do
+  if is_valid_aundekiosk_service "$good"; then
+    assert_eq "valid" "valid" "is_valid_aundekiosk_service accepts '$good'"
+  else
+    assert_eq "valid" "invalid" "is_valid_aundekiosk_service accepts '$good'"
+  fi
+done
+for bad in "sshd" "aundekiosk-dashboard; rm -rf /" "aundekiosk" ""; do
+  if is_valid_aundekiosk_service "$bad"; then
+    assert_eq "invalid" "valid" "is_valid_aundekiosk_service rejects '$bad'"
+  else
+    assert_eq "invalid" "invalid" "is_valid_aundekiosk_service rejects '$bad'"
+  fi
+done
+
 assert_summary

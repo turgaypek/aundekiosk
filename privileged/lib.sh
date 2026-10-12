@@ -66,3 +66,16 @@ is_valid_snmp_priv_protocol() {
 is_safe_secret_value() {
   [[ "$1" != *$'\n'* && "$1" != *$'\r'* ]]
 }
+
+# The only four systemd units a dashboard operator is ever allowed to
+# start/stop from the UI — never an arbitrary unit name.
+is_valid_aundekiosk_service() {
+  case "$1" in
+    aundekiosk-dashboard|aundekiosk-monitor|aundekiosk-runner|aundekiosk-switcher)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
