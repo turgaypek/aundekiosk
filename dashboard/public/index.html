@@ -130,6 +130,15 @@
                 <small class="text-body-secondary" data-i18n="monitor_window_hint">Leave both empty to monitor around the clock.</small>
               </div>
             </div>
+            <p class="text-body-secondary small mb-2" data-i18n="monitor_tiers_hint">
+              Each tier checks CPU and RAM usage separately against the same threshold — whichever crosses it first triggers the action.
+            </p>
+            <div class="d-none d-md-flex flex-wrap gap-2 mb-1 small text-body-secondary">
+              <span class="aundekiosk-num-input" data-i18n="monitor_tier_threshold_label">Threshold %</span>
+              <span class="aundekiosk-num-input" data-i18n="monitor_tier_samples_label">Samples</span>
+              <span class="aundekiosk-select-input" data-i18n="monitor_tier_action_label">Action</span>
+              <span class="aundekiosk-num-input" data-i18n="monitor_tier_cooldown_label">Cooldown (s)</span>
+            </div>
             <ul class="list-group list-group-flush mb-3" id="monitor-tiers"></ul>
             <div class="d-flex flex-wrap gap-2">
               <button id="monitor-add-tier" type="button" class="btn btn-secondary" data-i18n="monitor_add_tier_button">Add tier</button>

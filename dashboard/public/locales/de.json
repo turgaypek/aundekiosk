@@ -37,5 +37,10 @@
   "monitor_action_reboot": "Gerät neu starten",
   "monitor_tier_threshold_placeholder": "Schwelle %",
   "monitor_tier_samples_placeholder": "Messanzahl",
-  "monitor_tier_cooldown_placeholder": "Abklingzeit (s)"
+  "monitor_tier_cooldown_placeholder": "Abklingzeit (s)",
+  "monitor_tiers_hint": "Jede Stufe prüft die CPU- und RAM-Auslastung separat gegen denselben Schwellenwert — welcher Wert zuerst überschritten wird, löst die Aktion aus.",
+  "monitor_tier_threshold_label": "Schwelle %",
+  "monitor_tier_samples_label": "Messungen",
+  "monitor_tier_action_label": "Aktion",
+  "monitor_tier_cooldown_label": "Abklingzeit (s)"
 }

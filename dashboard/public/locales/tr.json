@@ -37,5 +37,10 @@
   "monitor_action_reboot": "Cihazı yeniden başlat",
   "monitor_tier_threshold_placeholder": "Eşik %",
   "monitor_tier_samples_placeholder": "Ölçüm sayısı",
-  "monitor_tier_cooldown_placeholder": "Bekleme (sn)"
+  "monitor_tier_cooldown_placeholder": "Bekleme (sn)",
+  "monitor_tiers_hint": "Her seviye, eşiği CPU ve RAM kullanımına ayrı ayrı uygular — ikisinden hangisi önce eşiği aşarsa işlem o anda tetiklenir.",
+  "monitor_tier_threshold_label": "Eşik %",
+  "monitor_tier_samples_label": "Ölçüm Sayısı",
+  "monitor_tier_action_label": "İşlem",
+  "monitor_tier_cooldown_label": "Bekleme (sn)"
 }

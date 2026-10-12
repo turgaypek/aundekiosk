@@ -37,5 +37,10 @@
   "monitor_action_reboot": "Reboot device",
   "monitor_tier_threshold_placeholder": "Threshold %",
   "monitor_tier_samples_placeholder": "Sample count",
-  "monitor_tier_cooldown_placeholder": "Cooldown (s)"
+  "monitor_tier_cooldown_placeholder": "Cooldown (s)",
+  "monitor_tiers_hint": "Each tier checks CPU and RAM usage separately against the same threshold — whichever crosses it first triggers the action.",
+  "monitor_tier_threshold_label": "Threshold %",
+  "monitor_tier_samples_label": "Samples",
+  "monitor_tier_action_label": "Action",
+  "monitor_tier_cooldown_label": "Cooldown (s)"
 }

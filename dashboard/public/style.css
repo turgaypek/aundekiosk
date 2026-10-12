@@ -3,7 +3,7 @@ body {
 }
 
 .aundekiosk-logo {
-  height: 68px;
+  height: 92px;
   width: auto;
 }
 
@@ -47,6 +47,6 @@ body {
 
 @media (max-width: 420px) {
   .aundekiosk-logo {
-    height: 44px;
+    height: 60px;
   }
 }
