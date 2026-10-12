@@ -1,3 +1,36 @@
 body {
   min-height: 100vh;
 }
+
+.aundekiosk-logo {
+  height: 68px;
+  width: auto;
+}
+
+/* Number/select inputs that used to carry a fixed inline width (e.g.
+   style="width: 90px"). Fixed pixel widths inside a flex-wrap row don't
+   shrink on a narrow viewport, forcing the row into horizontal overflow
+   instead of wrapping cleanly. flex-basis + min/max lets each input
+   shrink down to something still usable, or wrap to its own line,
+   instead of ever causing horizontal scroll. */
+.aundekiosk-num-input {
+  flex: 1 1 80px;
+  min-width: 64px;
+  max-width: 120px;
+}
+
+.aundekiosk-select-input {
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.aundekiosk-footer {
+  opacity: 0.7;
+}
+
+@media (max-width: 420px) {
+  .aundekiosk-logo {
+    height: 44px;
+  }
+}

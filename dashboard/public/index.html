@@ -10,7 +10,7 @@
       crossorigin="anonymous"
     />
     <link rel="stylesheet" href="style.css" />
-    <title>AundeKiosk</title>
+    <title data-i18n="app_title">Aunde Teknik Kiosk Sistemi</title>
   </head>
   <body>
     <section id="setup-section" class="container-md my-5" hidden>
@@ -48,60 +48,86 @@
     </section>
 
     <section id="app-section" hidden>
-      <nav class="navbar bg-body-tertiary py-3">
-        <div class="container-md d-flex flex-wrap align-items-center gap-3">
-          <img src="assets/aunde-teknik-logo.png" alt="Aunde Teknik" height="48" />
-          <h1 class="my-0" data-i18n="app_title">AundeKiosk</h1>
-          <input id="new-url" type="text" class="form-control" data-i18n-placeholder="nav_add_placeholder" />
-          <button id="add-url" type="button" class="btn btn-secondary" data-i18n="nav_add_button">ADD</button>
-          <button id="execute" type="button" class="btn btn-danger" data-i18n="nav_apply_button">APPLY</button>
-          <select id="lang-switch" class="form-select w-auto">
-            <option value="tr">TR</option>
-            <option value="en">EN</option>
-            <option value="de">DE</option>
-          </select>
-          <button id="logout-button" type="button" class="btn btn-outline-light" data-i18n="logout_button">Log out</button>
+      <nav class="navbar bg-body-tertiary py-3 border-bottom border-body-secondary">
+        <div class="container-xl d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <img src="assets/aunde-teknik-logo.png" alt="Aunde Teknik" class="aundekiosk-logo" />
+            <h1 class="h4 my-0" data-i18n="app_title">Aunde Teknik Kiosk System</h1>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-3">
+            <span id="live-clock" class="small text-body-secondary"></span>
+            <select id="lang-switch" class="form-select form-select-sm w-auto">
+              <option value="tr">TR</option>
+              <option value="en">EN</option>
+              <option value="de">DE</option>
+            </select>
+            <button id="logout-button" type="button" class="btn btn-outline-light btn-sm" data-i18n="logout_button">Log out</button>
+          </div>
         </div>
       </nav>
 
-      <div id="urls" class="container-md my-5">
-        <ul class="list-group list-group-flush"></ul>
-      </div>
-
-      <div id="services" class="container-md my-5">
-        <h2 data-i18n="services_heading">Services</h2>
-        <ul class="list-group list-group-flush" id="services-list"></ul>
-      </div>
-
-      <div id="monitor" class="container-md my-5">
-        <h2 data-i18n="monitor_heading">Resource Monitor</h2>
-        <div class="row g-3 mb-3 align-items-end">
-          <div class="col-auto">
-            <label class="form-label" data-i18n="monitor_interval_label">Sample interval (seconds)</label>
-            <input id="monitor-interval" type="number" class="form-control" min="1" max="3600" style="width: 140px" />
+      <div class="container-xl my-4">
+        <div id="urls" class="card mb-4">
+          <div class="card-header">
+            <h2 class="h5 my-0" data-i18n="urls_heading">Screens</h2>
           </div>
-          <div class="col-auto">
-            <label class="form-label" data-i18n="monitor_window_start_label">Active window start</label>
-            <input id="monitor-window-start" type="time" class="form-control" style="width: 140px" />
+          <div class="card-body d-flex flex-wrap gap-2">
+            <input id="new-url" type="text" class="form-control flex-grow-1" style="min-width: 200px" data-i18n-placeholder="urls_add_placeholder" />
+            <button id="add-url" type="button" class="btn btn-secondary" data-i18n="urls_add_button">ADD</button>
           </div>
-          <div class="col-auto">
-            <label class="form-label" data-i18n="monitor_window_end_label">Active window end</label>
-            <input id="monitor-window-end" type="time" class="form-control" style="width: 140px" />
-          </div>
-          <div class="col-auto">
-            <small class="text-body-secondary" data-i18n="monitor_window_hint">Leave both empty to monitor around the clock.</small>
+          <ul class="list-group list-group-flush"></ul>
+          <div class="card-footer text-end">
+            <button id="execute" type="button" class="btn btn-danger" data-i18n="urls_apply_button">APPLY</button>
           </div>
         </div>
-        <ul class="list-group list-group-flush mb-3" id="monitor-tiers"></ul>
-        <button id="monitor-add-tier" type="button" class="btn btn-secondary" data-i18n="monitor_add_tier_button">Add tier</button>
-        <button id="monitor-save" type="button" class="btn btn-danger" data-i18n="monitor_save_button">Save</button>
+
+        <div id="services" class="card mb-4">
+          <div class="card-header">
+            <h2 class="h5 my-0" data-i18n="services_heading">Services</h2>
+          </div>
+          <ul class="list-group list-group-flush" id="services-list"></ul>
+        </div>
+
+        <div id="monitor" class="card mb-4">
+          <div class="card-header">
+            <h2 class="h5 my-0" data-i18n="monitor_heading">Resource Monitor</h2>
+          </div>
+          <div class="card-body">
+            <div class="row g-3 mb-3 align-items-end">
+              <div class="col-auto">
+                <label class="form-label" data-i18n="monitor_interval_label">Sample interval (seconds)</label>
+                <input id="monitor-interval" type="number" class="form-control" min="1" max="3600" style="width: 140px" />
+              </div>
+              <div class="col-auto">
+                <label class="form-label" data-i18n="monitor_window_start_label">Active window start</label>
+                <input id="monitor-window-start" type="time" class="form-control" style="width: 140px" />
+              </div>
+              <div class="col-auto">
+                <label class="form-label" data-i18n="monitor_window_end_label">Active window end</label>
+                <input id="monitor-window-end" type="time" class="form-control" style="width: 140px" />
+              </div>
+              <div class="col-auto">
+                <small class="text-body-secondary" data-i18n="monitor_window_hint">Leave both empty to monitor around the clock.</small>
+              </div>
+            </div>
+            <ul class="list-group list-group-flush mb-3" id="monitor-tiers"></ul>
+            <div class="d-flex flex-wrap gap-2">
+              <button id="monitor-add-tier" type="button" class="btn btn-secondary" data-i18n="monitor_add_tier_button">Add tier</button>
+              <button id="monitor-save" type="button" class="btn btn-danger" data-i18n="monitor_save_button">Save</button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <footer class="aundekiosk-footer text-center text-body-secondary small py-4" data-i18n="footer_credit">
+        Designed by the Aunde Teknik IT Department
+      </footer>
     </section>
 
     <template id="template-url">
       <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2">
         <a target="_blank" rel="noopener" class="me-auto"></a>
-        <input type="number" class="form-control url-duration" min="1" max="300" style="width: 90px" data-i18n-placeholder="url_duration_placeholder" />
+        <input type="number" class="form-control aundekiosk-num-input url-duration" min="1" max="300" data-i18n-placeholder="url_duration_placeholder" />
         <button type="button" class="btn btn-sm btn-outline-danger remove-url" data-i18n="remove_button">Remove</button>
       </li>
     </template>
@@ -121,14 +147,14 @@
 
     <template id="template-tier">
       <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
-        <input type="number" class="form-control tier-threshold" min="0" max="100" style="width: 90px" data-i18n-placeholder="monitor_tier_threshold_placeholder" />
-        <input type="number" class="form-control tier-samples" min="1" max="1000" style="width: 110px" data-i18n-placeholder="monitor_tier_samples_placeholder" />
-        <select class="form-select tier-action" style="width: 170px">
+        <input type="number" class="form-control aundekiosk-num-input tier-threshold" min="0" max="100" data-i18n-placeholder="monitor_tier_threshold_placeholder" />
+        <input type="number" class="form-control aundekiosk-num-input tier-samples" min="1" max="1000" data-i18n-placeholder="monitor_tier_samples_placeholder" />
+        <select class="form-select tier-action aundekiosk-select-input">
           <option value="log" data-i18n="monitor_action_log">Log only</option>
           <option value="restart_services" data-i18n="monitor_action_restart_services">Restart services</option>
           <option value="reboot" data-i18n="monitor_action_reboot">Reboot</option>
         </select>
-        <input type="number" class="form-control tier-cooldown" min="0" max="604800" style="width: 130px" data-i18n-placeholder="monitor_tier_cooldown_placeholder" />
+        <input type="number" class="form-control aundekiosk-num-input tier-cooldown" min="0" max="604800" data-i18n-placeholder="monitor_tier_cooldown_placeholder" />
         <button type="button" class="btn btn-sm btn-outline-danger remove-tier" data-i18n="remove_button">Remove</button>
       </li>
     </template>
@@ -139,6 +165,7 @@
       crossorigin="anonymous"
     ></script>
     <script type="module" src="i18n.js"></script>
+    <script type="module" src="clock.js"></script>
     <script type="module" src="auth.js"></script>
     <script type="module" src="script.js"></script>
   </body>

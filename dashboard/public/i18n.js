@@ -3,16 +3,21 @@
 // import and test them directly; the bootstrap code below only runs in a
 // real browser (guarded by the `document`/`window` check at the bottom).
 
-export function resolveString(catalogs, lang, key) {
+export function resolveString(catalogs, lang, key, params) {
   const primary = catalogs[lang];
+  let template;
   if (primary && Object.prototype.hasOwnProperty.call(primary, key)) {
-    return primary[key];
+    template = primary[key];
+  } else {
+    const fallback = catalogs.en;
+    template = fallback && Object.prototype.hasOwnProperty.call(fallback, key) ? fallback[key] : key;
   }
-  const fallback = catalogs.en;
-  if (fallback && Object.prototype.hasOwnProperty.call(fallback, key)) {
-    return fallback[key];
-  }
-  return key;
+  if (!params) return template;
+  // Languages order a value differently inside a sentence (TR "{n}.
+  // Hafta" vs EN "Week {n}"), so callers can't just concatenate a
+  // prefix/suffix string — the placeholder lives inside the translated
+  // template itself.
+  return template.replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));
 }
 
 export function detectInitialLanguage(storedLang, supportedLangs, defaultLang) {
@@ -82,7 +87,7 @@ async function bootstrapI18n() {
   // dialogs) that need a translated string outside the data-i18n
   // attribute scan above — e.g. text handed to a native browser dialog,
   // which has no DOM node of its own to tag.
-  window.aundekiosk.t = (key) => resolveString(catalogs, lang, key);
+  window.aundekiosk.t = (key, params) => resolveString(catalogs, lang, key, params);
   // For render functions that clone a <template> row (URL rows, service
   // rows, monitor tier rows): call this on the freshly-cloned element
   // once, instead of hand-translating each field with window.aundekiosk.t().
