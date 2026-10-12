@@ -91,12 +91,31 @@ body {
 /* Setup/login: a single centered card instead of a left-aligned block,
    matching the same corporate card language as the rest of the app. */
 .auth-screen {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
+  overflow: hidden;
+}
+
+/* The animated "network" background (auth-bg.js) — purely decorative,
+   so it never intercepts clicks meant for the card above it. */
+.auth-bg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.auth-card,
+.auth-screen > .aundekiosk-footer {
+  position: relative;
+  z-index: 1;
 }
 
 .auth-card {
