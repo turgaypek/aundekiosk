@@ -6,6 +6,21 @@ source "$SCRIPT_DIR/common.sh"
 
 msg "$INFO" "Starting AundeKiosk installation..."
 
+# Deno (the dashboard's entire runtime) has no official build for
+# 32-bit ARM — only Linux x64 and Linux aarch64. Pi 1, Pi 2 (the
+# original, non-"+"), and the original Pi Zero are 32-bit-only chips
+# with no 64-bit OS option at all; Pi 3/3+/4/5/Zero 2 W can run either
+# OS width, but only the 64-bit image works here. Checking this first
+# means a mismatched device/OS fails with one clear message instead of
+# a confusing error deep inside the Deno install step below.
+ARCH=$(uname -m)
+case "$ARCH" in
+  armv6l|armv7l)
+    msg "$ERROR" "AundeKiosk's dashboard requires a 64-bit OS; Deno has no official build for 32-bit ARM ($ARCH). Re-flash this Pi with the 64-bit Raspberry Pi OS image (Pi 3/3+/4/5/Zero 2 W only — Pi 1, Pi 2, and the original Pi Zero cannot run a 64-bit OS at all and cannot run the dashboard)."
+    exit 1
+    ;;
+esac
+
 # This script doubles as the update path (update.sh re-runs it after
 # `git pull`). On an update, SUDO_USER is whichever admin happened to run
 # it, not necessarily the original target user — the already-recorded

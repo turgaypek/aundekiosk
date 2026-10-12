@@ -14,8 +14,10 @@ AundeKiosk, açık kaynak [xiosk](https://github.com/debloper/xiosk) projesinden
 
 ## 2. Hedef Donanım ve Platform
 
-- **Tam destekli & test edilecek:** Raspberry Pi 4, Raspberry Pi 5 — Raspberry Pi OS Bookworm, Wayland/labwc (varsayılan).
-- **Best-effort (topluluk desteği, resmi test kapsamı dışı):** Pi 3, Pi 2, Zero 2 W ve diğer eski modeller. Düşük RAM'li cihazlarda (512MB–1GB) Resource Monitor eşiklerinin daha düşük tutulması kurulumda önerilir.
+- **Tam destekli & test edilecek:** Raspberry Pi 4, Raspberry Pi 5 — Raspberry Pi OS Bookworm **64-bit**, Wayland/labwc (varsayılan).
+- **64-bit OS zorunlu (dashboard için), tüm modellerde:** Dashboard tamamen Deno üzerine kurulu, ve Deno'nun 32-bit ARM (armv6l/armv7l) için resmi bir derlemesi **yok** — sadece Linux x64 ve Linux aarch64 (64-bit) destekleniyor. `install.sh` bunu kurulumun en başında (`uname -m`) kontrol eder ve 32-bit tespit ederse Deno indirme adımına hiç girmeden anlaşılır bir hata ile durur.
+- **Best-effort (topluluk desteği, resmi test kapsamı dışı), 64-bit OS şartıyla:** Pi 3, Pi 3+, Zero 2 W — çipleri 64-bit destekliyor ama kurulumda **64-bit Raspberry Pi OS imajı seçilmesi şart**; 32-bit imaj kuruluysa dashboard çalışmaz. Düşük RAM'li cihazlarda (512MB–1GB) Resource Monitor eşiklerinin daha düşük tutulması kurulumda önerilir.
+- **Dashboard hiçbir şekilde desteklenmiyor:** Pi 1, Pi 2 (orijinal, "+" olmayan), orijinal Pi Zero (v1) — çipleri donanımsal olarak sadece 32-bit, 64-bit OS seçeneği hiç yok. Bu cihazlarda kiosk (Chromium) katmanı best-effort çalışabilir ama dashboard (auth, resource monitor, SSH/ağ/SNMP yönetimi) tamamen devre dışı kalır.
 - **Ekran sunucusu tespiti runtime'da yapılır** (build-time değil): `$WAYLAND_DISPLAY` set edilmişse Wayland (`wtype` kullanılır), değilse X11 varsayılır (`xdotool` kullanılır). Bu sayede Pi 4/5'te biri X11 masaüstü seçse bile sistem çalışır.
 - Model tespiti: `/proc/device-tree/model` okunur, `PI_MODEL` olarak paylaşılan bir ortam değişkenine yazılır (`common.sh` benzeri merkezi bir script üzerinden `runner.sh`/`switcher.sh` tarafından kullanılır).
 

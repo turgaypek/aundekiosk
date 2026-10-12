@@ -117,4 +117,48 @@ assert_status 0 $? "update.sh re-runs install.sh after pulling, reusing its idem
 grep -qE 'git config --global --add safe\.directory "\$AUNDEKIOSK_INSTALL_DIR"' "$UPDATE_SH" 2>/dev/null
 assert_status 0 $? "update.sh adds a git safe.directory exception for the aundekiosk-owned working tree before pulling"
 
+# Deno has no official build for 32-bit ARM (armv6l/armv7l) — only
+# Linux x64 and Linux aarch64. Letting install.sh reach the Deno
+# install step on a 32-bit Pi (Pi 1, Pi 2, or the original Pi Zero —
+# none of which can run a 64-bit OS at all, unlike Pi 3/3+/4/5/Zero 2 W)
+# would fail there with a confusing curl/install-script error instead
+# of a clear, immediate one.
+WORKDIR=$(mktemp -d)
+FAKE_BIN="$WORKDIR/bin"
+mkdir -p "$FAKE_BIN"
+cat > "$FAKE_BIN/uname" <<'EOF'
+#!/usr/bin/env bash
+echo "armv7l"
+EOF
+chmod +x "$FAKE_BIN/uname"
+
+arch_output=$(PATH="$FAKE_BIN:$PATH" env -u SUDO_USER bash "$INSTALL_SH" 2>&1)
+arch_status=$?
+assert_status 1 "$arch_status" "install.sh exits non-zero on a 32-bit ARM architecture"
+case "$arch_output" in
+  *"64-bit"*)
+    assert_eq "clear 64-bit message" "clear 64-bit message" "install.sh explains the 64-bit requirement instead of failing deep inside the Deno install step"
+    ;;
+  *)
+    assert_eq "clear 64-bit message" "unexpected output: $arch_output" "install.sh explains the 64-bit requirement instead of failing deep inside the Deno install step"
+    ;;
+esac
+
+# A 64-bit architecture (this dev machine's own real `uname -m`, e.g.
+# x86_64) must fall through past the arch check to the next one (user
+# resolution) — proving the check does not also reject valid
+# architectures. This is the same early-exit path the very first test
+# above already exercises, run again here to confirm the new arch
+# check sits before it without swallowing non-32-bit-ARM values.
+real_arch_output=$(env -u SUDO_USER bash "$INSTALL_SH" 2>&1)
+case "$real_arch_output" in
+  *"Could not determine target user"*)
+    assert_eq "falls through on 64-bit" "falls through on 64-bit" "install.sh does not reject this machine's own (non-32-bit-ARM) architecture"
+    ;;
+  *)
+    assert_eq "falls through on 64-bit" "unexpected output: $real_arch_output" "install.sh does not reject this machine's own (non-32-bit-ARM) architecture"
+    ;;
+esac
+rm -rf "$WORKDIR"
+
 assert_summary
