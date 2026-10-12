@@ -34,6 +34,14 @@ done
 grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/configure-snmp.sh$" "$SUDOERS_FILE"
 assert_status 0 $? "sudoers file grants aundekiosk exactly the configure-snmp.sh line"
 
+for service in aundekiosk-dashboard aundekiosk-monitor aundekiosk-runner aundekiosk-switcher; do
+  for action in start stop; do
+    line="aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-service.sh $service $action"
+    grep -qF "$line" "$SUDOERS_FILE"
+    assert_status 0 $? "sudoers file grants the exact line: $line"
+  done
+done
+
 grep -qE '\*|\$\{|\$\(' "$SUDOERS_FILE"
 if [[ $? -eq 0 ]]; then
   assert_eq "no-wildcards" "has-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
