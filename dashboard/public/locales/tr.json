@@ -11,7 +11,6 @@
   "setup_username_label": "Kullanıcı adı",
   "setup_password_label": "Şifre (en az 12 karakter)",
   "setup_submit": "Yönetici oluştur",
-  "login_heading": "Giriş yap",
   "login_username_label": "Kullanıcı adı",
   "login_password_label": "Şifre",
   "login_submit": "Giriş yap",

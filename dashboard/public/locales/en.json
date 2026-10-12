@@ -11,7 +11,6 @@
   "setup_username_label": "Username",
   "setup_password_label": "Password (min 12 characters)",
   "setup_submit": "Create admin",
-  "login_heading": "Log in",
   "login_username_label": "Username",
   "login_password_label": "Password",
   "login_submit": "Log in",

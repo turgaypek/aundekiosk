@@ -30,6 +30,64 @@ body {
   opacity: 0.85;
 }
 
+/* Navbar: logo | title | controls as three EQUAL-width (flex: 1 1 0)
+   regions, so the title sits at the true center of the whole bar no
+   matter how wide the controls group (clock + language + logout) gets —
+   an "auto 1fr auto" grid centers the title only within the leftover
+   space, which drifts off-center whenever the two side groups differ in
+   width (they do here: the controls are much wider than the logo).
+   Equal thirds also means the controls group, which already wraps
+   internally, can never overlap its neighbors — unlike centering the
+   title with position:absolute, which can't see how much room the
+   logo/controls actually need. */
+/* Bootstrap's own ".navbar > .container-xl" rule (display: flex,
+   specificity 0-2-0) outranks a plain ".aundekiosk-navbar" class
+   (0-1-0), so this must match it structurally to actually win. */
+.navbar > .aundekiosk-navbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.aundekiosk-navbar-brand {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+}
+
+.aundekiosk-navbar-title {
+  flex: 1 1 0;
+  margin: 0;
+  text-align: center;
+  /* Sized against the logo's own "AUNDE TEKNİK" wordmark (measured at
+     ~21% of the logo image's height) so the two don't visually compete —
+     the bare Bootstrap heading classes (h4 etc.) ran noticeably smaller
+     than the logo's own lettering once the logo was enlarged. */
+  font-size: clamp(1rem, 1.1vw + 0.85rem, 1.5rem);
+  font-weight: 600;
+}
+
+.aundekiosk-navbar-controls {
+  flex: 1 1 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 767px) {
+  .navbar > .aundekiosk-navbar {
+    flex-direction: column;
+  }
+
+  .aundekiosk-navbar-brand,
+  .aundekiosk-navbar-controls {
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+}
+
 /* Setup/login: a single centered card instead of a left-aligned block,
    matching the same corporate card language as the rest of the app. */
 .auth-screen {
