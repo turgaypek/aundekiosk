@@ -19,11 +19,23 @@ fi
 
 echo "Detected display server: $DISPLAY_SERVER (using $SWITCH_TOOL)"
 
-send_refresh() {
+# Ctrl+R (plain reload) re-submits the tab's current history entry.
+# Reported live on the real device: a signage page (an ASP.NET WebForms
+# dashboard using __doPostBack) ends up with a POST as that entry, so a
+# plain reload pops Chromium's "Confirm Form Resubmission" dialog and
+# blocks the display until someone clicks through it by hand. Re-typing
+# the URL into the address bar is always a fresh GET, so this can never
+# happen again — for this page or any future one added the same way.
+navigate_to_url() {
+  local url="$1"
   if [[ "$SWITCH_TOOL" == "wtype" ]]; then
-    wtype -M ctrl r -m ctrl
+    wtype -M ctrl -P l -m ctrl
+    wtype -- "$url"
+    wtype -P Return
   else
-    xdotool key ctrl+r
+    xdotool key ctrl+l
+    xdotool type --clearmodifiers -- "$url"
+    xdotool key Return
   fi
 }
 
@@ -40,6 +52,7 @@ if ! has_urls "$CONFIG_FILE"; then
   exit 0
 fi
 
+mapfile -t URLS < <(extract_urls_from_config "$CONFIG_FILE")
 mapfile -t DURATIONS < <(extract_durations_from_config "$CONFIG_FILE")
 mapfile -t CYCLES < <(extract_cycles_from_config "$CONFIG_FILE")
 URL_COUNT=${#DURATIONS[@]}
@@ -64,7 +77,7 @@ while true; do
 
   if should_refresh "${REFRESH_COUNTS[$CURRENT_TAB_INDEX]}" "$cycle_target"; then
     echo "Refreshing tab $((CURRENT_TAB_INDEX + 1))."
-    send_refresh
+    navigate_to_url "${URLS[$CURRENT_TAB_INDEX]}"
     REFRESH_COUNTS[$CURRENT_TAB_INDEX]=0
   fi
 
