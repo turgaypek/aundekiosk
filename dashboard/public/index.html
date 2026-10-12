@@ -10,41 +10,61 @@
       crossorigin="anonymous"
     />
     <link rel="stylesheet" href="style.css" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
     <title data-i18n="app_title">Aunde Teknik Kiosk Sistemi</title>
   </head>
   <body>
-    <section id="setup-section" class="container-md my-5" hidden>
-      <h1 data-i18n="app_title">AundeKiosk</h1>
-      <form id="setup-form" class="mt-4">
-        <h2 data-i18n="setup_heading">Set up the admin account</h2>
-        <div class="mb-3">
-          <label class="form-label" data-i18n="setup_username_label">Username</label>
-          <input id="setup-username" type="text" class="form-control" required />
+    <section id="setup-section" class="auth-screen" hidden>
+      <div class="auth-card card">
+        <div class="card-body text-center">
+          <img src="assets/aunde-teknik-logo.png" alt="Aunde Teknik" class="aundekiosk-logo mb-3" />
+          <h1 class="h5 mb-1" data-i18n="app_title">Aunde Teknik Kiosk Sistemi</h1>
+          <p class="text-body-secondary mb-4" data-i18n="setup_heading">Set up the admin account</p>
+          <form id="setup-form" class="text-start">
+            <div class="mb-3">
+              <label class="form-label" data-i18n="setup_username_label">Username</label>
+              <input id="setup-username" type="text" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" data-i18n="setup_password_label">Password (min 12 characters)</label>
+              <input id="setup-password" type="password" class="form-control" minlength="12" required />
+            </div>
+            <button type="submit" class="btn btn-primary w-100" data-i18n="setup_submit">Create admin</button>
+            <div id="setup-error" class="text-danger mt-2"></div>
+          </form>
         </div>
-        <div class="mb-3">
-          <label class="form-label" data-i18n="setup_password_label">Password (min 12 characters)</label>
-          <input id="setup-password" type="password" class="form-control" minlength="12" required />
-        </div>
-        <button type="submit" class="btn btn-primary" data-i18n="setup_submit">Create admin</button>
-        <div id="setup-error" class="text-danger mt-2"></div>
-      </form>
+      </div>
+      <footer class="aundekiosk-footer text-center text-body-secondary small py-4" data-i18n="footer_credit">
+        Designed by the Aunde Teknik IT Department
+      </footer>
     </section>
 
-    <section id="login-section" class="container-md my-5" hidden>
-      <h1 data-i18n="app_title">AundeKiosk</h1>
-      <form id="login-form" class="mt-4">
-        <h2 data-i18n="login_heading">Log in</h2>
-        <div class="mb-3">
-          <label class="form-label" data-i18n="login_username_label">Username</label>
-          <input id="login-username" type="text" class="form-control" required />
+    <section id="login-section" class="auth-screen" hidden>
+      <div class="auth-card card">
+        <div class="card-body text-center">
+          <img src="assets/aunde-teknik-logo.png" alt="Aunde Teknik" class="aundekiosk-logo mb-3" />
+          <h1 class="h5 mb-1" data-i18n="app_title">Aunde Teknik Kiosk Sistemi</h1>
+          <p class="text-body-secondary mb-4" data-i18n="login_heading">Log in</p>
+          <form id="login-form" class="text-start">
+            <div class="mb-3">
+              <label class="form-label" data-i18n="login_username_label">Username</label>
+              <input id="login-username" type="text" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" data-i18n="login_password_label">Password</label>
+              <input id="login-password" type="password" class="form-control" required />
+            </div>
+            <button type="submit" class="btn btn-primary w-100" data-i18n="login_submit">Log in</button>
+            <div id="login-error" class="text-danger mt-2"></div>
+          </form>
         </div>
-        <div class="mb-3">
-          <label class="form-label" data-i18n="login_password_label">Password</label>
-          <input id="login-password" type="password" class="form-control" required />
-        </div>
-        <button type="submit" class="btn btn-primary" data-i18n="login_submit">Log in</button>
-        <div id="login-error" class="text-danger mt-2"></div>
-      </form>
+      </div>
+      <footer class="aundekiosk-footer text-center text-body-secondary small py-4" data-i18n="footer_credit">
+        Designed by the Aunde Teknik IT Department
+      </footer>
     </section>
 
     <section id="app-section" hidden>

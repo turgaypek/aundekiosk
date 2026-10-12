@@ -29,6 +29,22 @@ body {
   opacity: 0.7;
 }
 
+/* Setup/login: a single centered card instead of a left-aligned block,
+   matching the same corporate card language as the rest of the app. */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+}
+
 @media (max-width: 420px) {
   .aundekiosk-logo {
     height: 44px;
