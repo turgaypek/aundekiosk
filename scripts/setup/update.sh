@@ -30,6 +30,18 @@ fi
 # depth against the dashboard user tampering with history/hooks).
 git config --global --add safe.directory "$AUNDEKIOSK_INSTALL_DIR"
 
+# install.sh's own "chmod +x privileged/*.sh" flips the executable bit
+# on every privileged script — including ones like lib.sh (a sourced
+# library, never committed as executable since it's never run
+# directly) whose committed mode has no +x. Git tracks that bit as part
+# of the file, so the very first install already leaves this checkout
+# "locally modified" relative to its own commit; without this, the next
+# pull that touches any of those files refuses with "Your local changes
+# ... would be overwritten by merge" — not a real edit, just the mode
+# bit install.sh itself is responsible for setting (verified against a
+# real `git pull` on the deployed Pi).
+git -C "$AUNDEKIOSK_INSTALL_DIR" config core.fileMode false
+
 msg "$INFO" "Pulling the latest AundeKiosk commits..."
 git -C "$AUNDEKIOSK_INSTALL_DIR" pull --ff-only
 

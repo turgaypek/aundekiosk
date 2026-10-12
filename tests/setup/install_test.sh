@@ -117,6 +117,18 @@ assert_status 0 $? "update.sh re-runs install.sh after pulling, reusing its idem
 grep -qE 'git config --global --add safe\.directory "\$AUNDEKIOSK_INSTALL_DIR"' "$UPDATE_SH" 2>/dev/null
 assert_status 0 $? "update.sh adds a git safe.directory exception for the aundekiosk-owned working tree before pulling"
 
+# Verified against a real `git pull` on the deployed Pi: install.sh's own
+# "chmod +x privileged/*.sh" flips the executable bit on any script that
+# wasn't already committed as executable (e.g. lib.sh, a sourced library,
+# never meant to be run directly). Git tracks that bit as part of a
+# file's tracked state, so the very first install already leaves the
+# working tree "locally modified" relative to the commit it came from —
+# and the next `git pull` that touches that same file refuses with
+# "Your local changes ... would be overwritten by merge", even though
+# nothing a human would call a real edit ever happened.
+grep -qE 'git .*config.* core\.fileMode false' "$UPDATE_SH" 2>/dev/null
+assert_status 0 $? "update.sh tells git to ignore file-mode (executable-bit) changes, which install.sh's own chmod would otherwise cause"
+
 # Deno has no official build for 32-bit ARM (armv6l/armv7l) — only
 # Linux x64 and Linux aarch64. Letting install.sh reach the Deno
 # install step on a 32-bit Pi (Pi 1, Pi 2, or the original Pi Zero —
