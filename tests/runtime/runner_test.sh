@@ -79,5 +79,26 @@ for arg in "${chromium_args[@]}"; do
 done
 assert_eq "yes" "$found_separator" "runner.sh passes a literal -- before the URL list so a value can never be parsed as a chromium flag"
 
+# --- case 4: chromium's whole profile (cache included) is pointed at the
+# RAM-backed tmpfs install.sh sets up, never the default ~/.config/chromium
+# on the SD card. Found live: that default location had grown to 1.7GB on
+# the real device, rewritten constantly as switcher.sh cycles pages every
+# few seconds — exactly the write pattern that wears out or stalls a
+# slower SD card. A kiosk showing fixed public URLs never needs that
+# profile to survive a reboot, so tmpfs (gone on reboot) is strictly
+# better here, not just a workaround. ---
+export AUNDEKIOSK_CHROMIUM_CACHE_DIR="$WORKDIR/chromium-cache"
+rm -f "$AUNDEKIOSK_TEST_CHROMIUM_ARGS_FILE"
+bash "$RUNNER" > "$WORKDIR/runner_output_cache.txt" 2>&1 || true
+
+mapfile -t chromium_args_cache < "$AUNDEKIOSK_TEST_CHROMIUM_ARGS_FILE"
+found_user_data_dir="no"
+for arg in "${chromium_args_cache[@]}"; do
+  if [[ "$arg" == "--user-data-dir=$WORKDIR/chromium-cache" ]]; then
+    found_user_data_dir="yes"
+  fi
+done
+assert_eq "yes" "$found_user_data_dir" "runner.sh points chromium's whole profile (--user-data-dir) at the tmpfs cache dir, not the SD-card default"
+
 rm -rf "$WORKDIR"
 assert_summary

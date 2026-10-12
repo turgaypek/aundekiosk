@@ -47,6 +47,31 @@ EOF
 result=$(detect_ram_mb "$FIXTURES/meminfo_4gb.txt")
 assert_eq "3955" "$result" "detect_ram_mb converts kB to MB"
 
+# --- compute_tmpfs_cache_mb ---
+# Chromium's own disk cache (plus its whole profile, once runner.sh
+# points --user-data-dir there) was found eating 1.7GB of SD card writes
+# on the real device, rewritten constantly as switcher.sh cycles pages —
+# a likely cause of the lockups/slowdowns on slower cards. Moving it to
+# a RAM-backed tmpfs fixes that, but the fleet includes Pi models with
+# very different RAM, so the size must scale down on small boards
+# (floor) and never be allowed to eat an unreasonable chunk of RAM on
+# large ones (ceiling) — a fixed 512MB tmpfs would be fine on an 8GB Pi 5
+# but could itself help trigger OOM pressure on a 512MB Pi Zero 2 W.
+result=$(compute_tmpfs_cache_mb 512)
+assert_eq "64" "$result" "compute_tmpfs_cache_mb floors at 64MB on a low-RAM board"
+
+result=$(compute_tmpfs_cache_mb 1024)
+assert_eq "64" "$result" "compute_tmpfs_cache_mb stays at the 64MB floor at 1GB RAM"
+
+result=$(compute_tmpfs_cache_mb 4096)
+assert_eq "256" "$result" "compute_tmpfs_cache_mb scales to RAM/16 in the middle of the range"
+
+result=$(compute_tmpfs_cache_mb 8192)
+assert_eq "512" "$result" "compute_tmpfs_cache_mb reaches exactly the 512MB ceiling at 8GB RAM"
+
+result=$(compute_tmpfs_cache_mb 16384)
+assert_eq "512" "$result" "compute_tmpfs_cache_mb never exceeds the 512MB ceiling on a high-RAM board"
+
 # --- extract_urls_from_config / has_urls ---
 cat > "$FIXTURES/config_two_urls.json" <<'EOF'
 {

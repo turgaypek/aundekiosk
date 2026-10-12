@@ -183,4 +183,31 @@ case "$real_arch_output" in
 esac
 rm -rf "$WORKDIR"
 
+# Found live: Chromium's default profile location (~/.config/chromium)
+# had grown to 1.7GB of constant SD-card rewrites, since switcher.sh
+# cycles pages every few seconds and each one touches the disk cache.
+# install.sh must set up a RAM-backed (tmpfs) replacement, sized to the
+# board's own RAM (platform/lib.sh's compute_tmpfs_cache_mb), and point
+# runner.sh's --user-data-dir there via AUNDEKIOSK_CHROMIUM_CACHE_DIR.
+grep -q "source \"\$AUNDEKIOSK_INSTALL_DIR/platform/lib.sh\"" "$INSTALL_SH"
+assert_status 0 $? "install.sh sources platform/lib.sh to reach compute_tmpfs_cache_mb/detect_ram_mb"
+
+grep -q "compute_tmpfs_cache_mb" "$INSTALL_SH"
+assert_status 0 $? "install.sh sizes the tmpfs cache against this board's detected RAM"
+
+grep -qE "tmpfs[[:space:]]+\\\$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]+tmpfs[[:space:]]+size=" "$INSTALL_SH"
+assert_status 0 $? "install.sh writes an fstab tmpfs entry for the Chromium cache directory"
+
+grep -q "mountpoint -q" "$INSTALL_SH"
+assert_status 0 $? "install.sh only mounts the tmpfs cache if it isn't already mounted (idempotent re-runs)"
+
+# Long-running kiosks (months of uptime) must not let systemd's own
+# journal or the dashboard/monitor's shared audit.log grow unbounded on
+# a card that may already be small and slow.
+grep -q "SystemMaxUse=" "$INSTALL_SH"
+assert_status 0 $? "install.sh caps systemd-journald's on-disk log size"
+
+grep -q "/etc/logrotate.d/aundekiosk" "$INSTALL_SH"
+assert_status 0 $? "install.sh installs a logrotate policy for audit.log"
+
 assert_summary

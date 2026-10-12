@@ -43,6 +43,22 @@ detect_ram_mb() {
   echo $(( kb / 1024 ))
 }
 
+# Sizes the RAM-backed (tmpfs) cache install.sh gives Chromium, in MB.
+# RAM/16 scales with the board, floored at 64MB (a cache that small is
+# still useful) and capped at 512MB (so it can never itself become a
+# meaningful chunk of RAM on a high-RAM board — this is a fixed ceiling,
+# not a target).
+compute_tmpfs_cache_mb() {
+  local ram_mb="$1"
+  local mb=$(( ram_mb / 16 ))
+  if (( mb < 64 )); then
+    mb=64
+  elif (( mb > 512 )); then
+    mb=512
+  fi
+  echo "$mb"
+}
+
 # Every jq call below pipes through `tr -d '\r'`: on at least one platform
 # (jq.exe on Windows) `jq -r` emits CRLF line endings, which otherwise
 # leaves a trailing \r on every line `mapfile` reads — invisible in

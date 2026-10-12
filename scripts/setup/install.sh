@@ -117,6 +117,44 @@ if ! visudo -c -f "$SUDOERS_SRC"; then
 fi
 install -m 0440 "$SUDOERS_SRC" "$SUDOERS_DST"
 
+# Found live: Chromium's default profile (~/.config/chromium) had grown
+# to 1.7GB on the SD card, rewritten constantly as switcher.sh cycles
+# pages every few seconds — exactly the write pattern that wears out or
+# stalls a slower card. A kiosk showing fixed public URLs never needs
+# that profile to survive a reboot, so a RAM-backed tmpfs (sized to this
+# board's own RAM, never a fixed size that could strain a low-RAM board)
+# is strictly better here, not just a workaround.
+msg "$INFO" "Setting up a RAM-backed cache for Chromium's profile, sized to this board's RAM..."
+source "$AUNDEKIOSK_INSTALL_DIR/platform/lib.sh"
+AUNDEKIOSK_CHROMIUM_CACHE_DIR="/var/cache/aundekiosk-chromium"
+TMPFS_MB=$(compute_tmpfs_cache_mb "$(detect_ram_mb)")
+install -d -m 0700 -o "$PI_USER" -g "$PI_USER" "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
+if ! grep -qE "^tmpfs[[:space:]]+$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]" /etc/fstab; then
+    echo "tmpfs $AUNDEKIOSK_CHROMIUM_CACHE_DIR tmpfs size=${TMPFS_MB}m,mode=0700 0 0" >> /etc/fstab
+fi
+mountpoint -q "$AUNDEKIOSK_CHROMIUM_CACHE_DIR" || mount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
+chown "$PI_USER:$PI_USER" "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
+
+# A kiosk left running for months must not let its own logs quietly fill
+# up a card that may already be small and slow.
+msg "$INFO" "Capping systemd-journald's on-disk log size..."
+if ! grep -q "^SystemMaxUse=" /etc/systemd/journald.conf; then
+    sed -i '/^\[Journal\]/a SystemMaxUse=50M' /etc/systemd/journald.conf
+fi
+systemctl restart systemd-journald
+
+msg "$INFO" "Installing a logrotate policy for audit.log (shared by the dashboard and the resource monitor)..."
+cat > /etc/logrotate.d/aundekiosk <<EOF
+$AUNDEKIOSK_INSTALL_DIR/audit.log {
+    size 5M
+    rotate 4
+    compress
+    missingok
+    notifempty
+    create 0600 aundekiosk aundekiosk
+}
+EOF
+
 msg "$INFO" "Installing systemd services..."
 PI_HOME=$(getent passwd "$PI_USER" | cut -d: -f6)
 PI_SUID=$(id -u "$PI_USER")

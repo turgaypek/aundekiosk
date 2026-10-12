@@ -7,6 +7,13 @@ source "$SCRIPT_DIR/../platform/lib.sh"
 
 CONFIG_FILE="${AUNDEKIOSK_CONFIG_FILE:-/opt/aundekiosk/config.json}"
 STARTUP_DELAY="${AUNDEKIOSK_STARTUP_DELAY:-5}"
+# RAM-backed, set up by install.sh — chromium's whole profile (cache
+# included) lives here instead of the SD card. Found live: the default
+# ~/.config/chromium location had grown to 1.7GB of constant SD-card
+# rewrites from switcher.sh cycling pages every few seconds. A kiosk
+# showing fixed public URLs never needs this profile to survive a
+# reboot, so losing it on reboot (tmpfs) is not a tradeoff here.
+CHROMIUM_CACHE_DIR="${AUNDEKIOSK_CHROMIUM_CACHE_DIR:-/var/cache/aundekiosk-chromium}"
 
 export DISPLAY="${DISPLAY:-:0}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -41,5 +48,6 @@ exec chromium \
   --kiosk \
   --no-first-run \
   --noerrdialogs \
+  --user-data-dir="$CHROMIUM_CACHE_DIR" \
   -- \
   "${URLS[@]}"
