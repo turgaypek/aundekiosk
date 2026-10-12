@@ -12,5 +12,14 @@
   "login_password_label": "Passwort",
   "login_submit": "Anmelden",
   "logout_button": "Abmelden",
-  "remove_button": "Entfernen"
+  "remove_button": "Entfernen",
+  "services_heading": "Dienste",
+  "service_start_button": "Starten",
+  "service_stop_button": "Stoppen",
+  "service_name_dashboard": "Dashboard",
+  "service_name_monitor": "Ressourcenüberwachung",
+  "service_name_runner": "Kiosk-Runner",
+  "service_name_switcher": "Kiosk-Switcher",
+  "service_stop_dashboard_warning": "Wenn Sie das Dashboard stoppen, verlieren Sie Ihren eigenen Zugriff, bis es über SSH oder physischen Zugriff auf das Gerät neu gestartet wird. Fortfahren?",
+  "service_confirm_password_prompt": "Geben Sie Ihr aktuelles Passwort zur Bestätigung erneut ein:"
 }

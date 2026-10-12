@@ -67,12 +67,30 @@
       <div id="urls" class="container-md my-5">
         <ul class="list-group list-group-flush"></ul>
       </div>
+
+      <div id="services" class="container-md my-5">
+        <h2 data-i18n="services_heading">Services</h2>
+        <ul class="list-group list-group-flush" id="services-list"></ul>
+      </div>
     </section>
 
     <template id="template-url">
       <li class="list-group-item d-flex justify-content-between align-items-center">
         <a target="_blank" rel="noopener"></a>
         <button type="button" class="btn btn-sm btn-outline-danger remove-url" data-i18n="remove_button">Remove</button>
+      </li>
+    </template>
+
+    <template id="template-service">
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>
+          <span class="service-name fw-semibold"></span>
+          <span class="badge ms-2 service-status"></span>
+        </span>
+        <span>
+          <button type="button" class="btn btn-sm btn-success service-start" data-i18n="service_start_button">Start</button>
+          <button type="button" class="btn btn-sm btn-outline-danger service-stop" data-i18n="service_stop_button">Stop</button>
+        </span>
       </li>
     </template>
 

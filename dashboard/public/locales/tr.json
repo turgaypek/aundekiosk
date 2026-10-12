@@ -12,5 +12,14 @@
   "login_password_label": "Şifre",
   "login_submit": "Giriş yap",
   "logout_button": "Çıkış yap",
-  "remove_button": "Kaldır"
+  "remove_button": "Kaldır",
+  "services_heading": "Servisler",
+  "service_start_button": "Başlat",
+  "service_stop_button": "Durdur",
+  "service_name_dashboard": "Yönetim Paneli",
+  "service_name_monitor": "Kaynak İzleyici",
+  "service_name_runner": "Kiosk Çalıştırıcı",
+  "service_name_switcher": "Kiosk Geçiş Yöneticisi",
+  "service_stop_dashboard_warning": "Yönetim panelini durdurursanız, yeniden başlatılana kadar (SSH veya cihaza fiziksel erişimle) kendi erişiminizi kaybedersiniz. Devam edilsin mi?",
+  "service_confirm_password_prompt": "Onaylamak için mevcut şifrenizi tekrar girin:"
 }

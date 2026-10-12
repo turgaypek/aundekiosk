@@ -64,6 +64,11 @@ async function bootstrapI18n() {
 
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.setLanguage = applyLanguage;
+  // Exposed for scripts (script.js's service-control confirm()/prompt()
+  // dialogs) that need a translated string outside the data-i18n
+  // attribute scan above — e.g. text handed to a native browser dialog,
+  // which has no DOM node of its own to tag.
+  window.aundekiosk.t = (key) => resolveString(catalogs, lang, key);
   applyLanguage(lang);
 }
 

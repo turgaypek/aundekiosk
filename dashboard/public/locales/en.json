@@ -12,5 +12,14 @@
   "login_password_label": "Password",
   "login_submit": "Log in",
   "logout_button": "Log out",
-  "remove_button": "Remove"
+  "remove_button": "Remove",
+  "services_heading": "Services",
+  "service_start_button": "Start",
+  "service_stop_button": "Stop",
+  "service_name_dashboard": "Dashboard",
+  "service_name_monitor": "Resource Monitor",
+  "service_name_runner": "Kiosk Runner",
+  "service_name_switcher": "Kiosk Switcher",
+  "service_stop_dashboard_warning": "Stopping the dashboard will cut off your own access until it is restarted via SSH or physical access to the device. Continue?",
+  "service_confirm_password_prompt": "Re-enter your current password to confirm:"
 }
