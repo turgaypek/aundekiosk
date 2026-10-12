@@ -40,14 +40,28 @@ async function bootstrapI18n() {
   }
   let lang = detectInitialLanguage(storedLang, SUPPORTED_LANGS, DEFAULT_LANG);
 
-  function applyLanguage(nextLang) {
-    lang = nextLang;
-    document.querySelectorAll("[data-i18n]").forEach((el) => {
+  // Scans `root` (and root itself, if it carries the attribute) for
+  // data-i18n/data-i18n-placeholder — same rules applyLanguage uses for
+  // the whole document, but callable on a smaller subtree too. Needed
+  // because content cloned out of a <template> (URL rows, service rows,
+  // monitor tier rows) is created well after the page's one-time initial
+  // scan below, and never gets touched by it otherwise.
+  function translateSubtree(root) {
+    const textTargets = root.matches?.("[data-i18n]") ? [root] : [];
+    textTargets.push(...root.querySelectorAll("[data-i18n]"));
+    textTargets.forEach((el) => {
       el.textContent = resolveString(catalogs, lang, el.getAttribute("data-i18n"));
     });
-    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    const placeholderTargets = root.matches?.("[data-i18n-placeholder]") ? [root] : [];
+    placeholderTargets.push(...root.querySelectorAll("[data-i18n-placeholder]"));
+    placeholderTargets.forEach((el) => {
       el.setAttribute("placeholder", resolveString(catalogs, lang, el.getAttribute("data-i18n-placeholder")));
     });
+  }
+
+  function applyLanguage(nextLang) {
+    lang = nextLang;
+    translateSubtree(document.documentElement);
     const switcher = document.getElementById("lang-switch");
     if (switcher) switcher.value = lang;
     try {
@@ -69,6 +83,10 @@ async function bootstrapI18n() {
   // attribute scan above — e.g. text handed to a native browser dialog,
   // which has no DOM node of its own to tag.
   window.aundekiosk.t = (key) => resolveString(catalogs, lang, key);
+  // For render functions that clone a <template> row (URL rows, service
+  // rows, monitor tier rows): call this on the freshly-cloned element
+  // once, instead of hand-translating each field with window.aundekiosk.t().
+  window.aundekiosk.translateSubtree = translateSubtree;
   applyLanguage(lang);
 }
 

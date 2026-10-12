@@ -10,6 +10,10 @@ function renderUrlRow(entry) {
   link.textContent = entry.url;
   row.dataset.duration = entry.duration;
   row.dataset.cycles = entry.cycles;
+  // Translates this row's own data-i18n elements (the Remove button) —
+  // i18n.js's one-time page-load scan never reaches content cloned out
+  // of a <template> well after that scan already ran.
+  window.aundekiosk?.translateSubtree?.(row);
   row.querySelector(".remove-url").addEventListener("click", () => row.remove());
   return row;
 }
@@ -63,6 +67,9 @@ function renderServiceRow(service, status) {
   const template = document.getElementById("template-service");
   const row = template.content.firstElementChild.cloneNode(true);
   row.dataset.service = service;
+  window.aundekiosk?.translateSubtree?.(row);
+  // Overwrites the just-translated placeholder text with the real
+  // (non-i18n — it's an opaque service identifier, not UI copy) name.
   row.querySelector(".service-name").textContent = serviceLabel(service);
   const badge = row.querySelector(".service-status");
   badge.textContent = status;
@@ -90,14 +97,12 @@ async function toggleService(service, action) {
   // deliberate stop — so this needs an extra, explicit warning on top
   // of the step-up re-auth every other toggle already requires.
   if (service === "aundekiosk-dashboard" && action === "stop") {
-    const warningKey = "service_stop_dashboard_warning";
-    const warning = window.aundekiosk?.t ? window.aundekiosk.t(warningKey) : null;
+    const warning = window.aundekiosk?.t?.("service_stop_dashboard_warning");
     if (!confirm(warning || "Stopping the dashboard will cut off your own access until it is restarted via SSH or physical access. Continue?")) {
       return;
     }
   }
-  const promptKey = "service_confirm_password_prompt";
-  const promptText = window.aundekiosk?.t ? window.aundekiosk.t(promptKey) : null;
+  const promptText = window.aundekiosk?.t?.("service_confirm_password_prompt");
   const confirmPassword = prompt(promptText || "Re-enter your current password to confirm:");
   if (!confirmPassword) return;
 
@@ -111,6 +116,58 @@ async function toggleService(service, action) {
   if (res.ok) await loadServiceStatus();
 }
 
+function renderTierRow(tier) {
+  const template = document.getElementById("template-tier");
+  const row = template.content.firstElementChild.cloneNode(true);
+  // Translates the Remove button and the <option> labels (the template's
+  // own data-i18n attributes) — see renderUrlRow's comment on why a
+  // cloned template's content needs this instead of the page-load scan.
+  window.aundekiosk?.translateSubtree?.(row);
+  row.querySelector(".tier-threshold").value = tier.threshold;
+  row.querySelector(".tier-samples").value = tier.sustainedSamples;
+  row.querySelector(".tier-action").value = tier.action;
+  row.querySelector(".tier-cooldown").value = tier.cooldownSeconds;
+  row.querySelector(".remove-tier").addEventListener("click", () => row.remove());
+  return row;
+}
+
+async function loadMonitorConfig() {
+  const intervalInput = document.getElementById("monitor-interval");
+  if (!intervalInput) return;
+  const res = await fetch("/monitor-config");
+  if (!res.ok) return;
+  const cfg = await res.json();
+  intervalInput.value = cfg.sampleIntervalSeconds;
+  document.getElementById("monitor-window-start").value = cfg.activeWindow?.start ?? "";
+  document.getElementById("monitor-window-end").value = cfg.activeWindow?.end ?? "";
+  const list = document.getElementById("monitor-tiers");
+  list.innerHTML = "";
+  for (const tier of cfg.tiers) {
+    list.appendChild(renderTierRow(tier));
+  }
+}
+
+async function saveMonitorConfig() {
+  const sampleIntervalSeconds = Number(document.getElementById("monitor-interval").value) || 10;
+  const start = document.getElementById("monitor-window-start").value;
+  const end = document.getElementById("monitor-window-end").value;
+  const activeWindow = start && end ? { start, end } : null;
+  const tiers = [...document.querySelectorAll("#monitor-tiers > li")].map((row) => ({
+    threshold: Number(row.querySelector(".tier-threshold").value),
+    sustainedSamples: Number(row.querySelector(".tier-samples").value),
+    action: row.querySelector(".tier-action").value,
+    cooldownSeconds: Number(row.querySelector(".tier-cooldown").value),
+  }));
+  const res = await fetch("/monitor-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sampleIntervalSeconds, activeWindow, tiers }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) await loadMonitorConfig();
+}
+
 if (typeof document !== "undefined") {
   document.getElementById("add-url")?.addEventListener("click", () => {
     const input = document.getElementById("new-url");
@@ -122,7 +179,15 @@ if (typeof document !== "undefined") {
 
   document.getElementById("execute")?.addEventListener("click", applyConfig);
 
+  document.getElementById("monitor-add-tier")?.addEventListener("click", () => {
+    document.getElementById("monitor-tiers").appendChild(
+      renderTierRow({ threshold: 70, sustainedSamples: 10, action: "log", cooldownSeconds: 300 }),
+    );
+  });
+  document.getElementById("monitor-save")?.addEventListener("click", saveMonitorConfig);
+
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.loadConfig = loadConfig;
   window.aundekiosk.loadServiceStatus = loadServiceStatus;
+  window.aundekiosk.loadMonitorConfig = loadMonitorConfig;
 }

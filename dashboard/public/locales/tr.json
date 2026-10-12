@@ -21,5 +21,18 @@
   "service_name_runner": "Kiosk Çalıştırıcı",
   "service_name_switcher": "Kiosk Geçiş Yöneticisi",
   "service_stop_dashboard_warning": "Yönetim panelini durdurursanız, yeniden başlatılana kadar (SSH veya cihaza fiziksel erişimle) kendi erişiminizi kaybedersiniz. Devam edilsin mi?",
-  "service_confirm_password_prompt": "Onaylamak için mevcut şifrenizi tekrar girin:"
+  "service_confirm_password_prompt": "Onaylamak için mevcut şifrenizi tekrar girin:",
+  "monitor_heading": "Kaynak İzleyici",
+  "monitor_interval_label": "Ölçüm aralığı (saniye)",
+  "monitor_window_start_label": "İzleme başlangıcı",
+  "monitor_window_end_label": "İzleme bitişi",
+  "monitor_window_hint": "Günün her saati izlemek için ikisini de boş bırakın.",
+  "monitor_add_tier_button": "Seviye ekle",
+  "monitor_save_button": "Kaydet",
+  "monitor_action_log": "Sadece logla",
+  "monitor_action_restart_services": "Servisleri yeniden başlat",
+  "monitor_action_reboot": "Cihazı yeniden başlat",
+  "monitor_tier_threshold_placeholder": "Eşik %",
+  "monitor_tier_samples_placeholder": "Ölçüm sayısı",
+  "monitor_tier_cooldown_placeholder": "Bekleme (sn)"
 }

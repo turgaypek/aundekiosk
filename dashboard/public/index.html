@@ -72,6 +72,30 @@
         <h2 data-i18n="services_heading">Services</h2>
         <ul class="list-group list-group-flush" id="services-list"></ul>
       </div>
+
+      <div id="monitor" class="container-md my-5">
+        <h2 data-i18n="monitor_heading">Resource Monitor</h2>
+        <div class="row g-3 mb-3 align-items-end">
+          <div class="col-auto">
+            <label class="form-label" data-i18n="monitor_interval_label">Sample interval (seconds)</label>
+            <input id="monitor-interval" type="number" class="form-control" min="1" max="3600" style="width: 140px" />
+          </div>
+          <div class="col-auto">
+            <label class="form-label" data-i18n="monitor_window_start_label">Active window start</label>
+            <input id="monitor-window-start" type="time" class="form-control" style="width: 140px" />
+          </div>
+          <div class="col-auto">
+            <label class="form-label" data-i18n="monitor_window_end_label">Active window end</label>
+            <input id="monitor-window-end" type="time" class="form-control" style="width: 140px" />
+          </div>
+          <div class="col-auto">
+            <small class="text-body-secondary" data-i18n="monitor_window_hint">Leave both empty to monitor around the clock.</small>
+          </div>
+        </div>
+        <ul class="list-group list-group-flush mb-3" id="monitor-tiers"></ul>
+        <button id="monitor-add-tier" type="button" class="btn btn-secondary" data-i18n="monitor_add_tier_button">Add tier</button>
+        <button id="monitor-save" type="button" class="btn btn-danger" data-i18n="monitor_save_button">Save</button>
+      </div>
     </section>
 
     <template id="template-url">
@@ -91,6 +115,20 @@
           <button type="button" class="btn btn-sm btn-success service-start" data-i18n="service_start_button">Start</button>
           <button type="button" class="btn btn-sm btn-outline-danger service-stop" data-i18n="service_stop_button">Stop</button>
         </span>
+      </li>
+    </template>
+
+    <template id="template-tier">
+      <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+        <input type="number" class="form-control tier-threshold" min="0" max="100" style="width: 90px" data-i18n-placeholder="monitor_tier_threshold_placeholder" />
+        <input type="number" class="form-control tier-samples" min="1" max="1000" style="width: 110px" data-i18n-placeholder="monitor_tier_samples_placeholder" />
+        <select class="form-select tier-action" style="width: 170px">
+          <option value="log" data-i18n="monitor_action_log">Log only</option>
+          <option value="restart_services" data-i18n="monitor_action_restart_services">Restart services</option>
+          <option value="reboot" data-i18n="monitor_action_reboot">Reboot</option>
+        </select>
+        <input type="number" class="form-control tier-cooldown" min="0" max="604800" style="width: 130px" data-i18n-placeholder="monitor_tier_cooldown_placeholder" />
+        <button type="button" class="btn btn-sm btn-outline-danger remove-tier" data-i18n="remove_button">Remove</button>
       </li>
     </template>
 

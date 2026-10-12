@@ -21,5 +21,18 @@
   "service_name_runner": "Kiosk Runner",
   "service_name_switcher": "Kiosk Switcher",
   "service_stop_dashboard_warning": "Stopping the dashboard will cut off your own access until it is restarted via SSH or physical access to the device. Continue?",
-  "service_confirm_password_prompt": "Re-enter your current password to confirm:"
+  "service_confirm_password_prompt": "Re-enter your current password to confirm:",
+  "monitor_heading": "Resource Monitor",
+  "monitor_interval_label": "Sample interval (seconds)",
+  "monitor_window_start_label": "Active window start",
+  "monitor_window_end_label": "Active window end",
+  "monitor_window_hint": "Leave both empty to monitor around the clock.",
+  "monitor_add_tier_button": "Add tier",
+  "monitor_save_button": "Save",
+  "monitor_action_log": "Log only",
+  "monitor_action_restart_services": "Restart services",
+  "monitor_action_reboot": "Reboot device",
+  "monitor_tier_threshold_placeholder": "Threshold %",
+  "monitor_tier_samples_placeholder": "Sample count",
+  "monitor_tier_cooldown_placeholder": "Cooldown (s)"
 }
