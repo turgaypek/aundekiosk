@@ -73,5 +73,46 @@ assert_status 0 $? "switcher.sh presses Return to submit the re-typed URL"
 grep -q "xdotool key ctrl+r" "$XDOTOOL_LOG"
 assert_status 1 $? "switcher.sh never sends a plain ctrl+r reload (it would hit Confirm Form Resubmission on a POSTed page)"
 
+# --- case 4: a duration edited via the dashboard takes effect on the
+# switcher's very next loop iteration, without restarting the service.
+# Found live: the admin changed a URL's duration from 10s to 30s and
+# applied it through the dashboard, but the already-running switcher
+# kept using the 10s it had loaded once at its own startup, minutes
+# earlier — config.json's mtime was 5 minutes after the switcher had
+# started. One URL, duration starts at 1s so the first "switch to next
+# tab" (ctrl+Tab) happens quickly; the moment it's observed, the
+# duration is rewritten to 60s. If the switcher is still using its
+# stale starting value, it keeps sending ctrl+Tab about once a second;
+# if it re-reads the file, it goes quiet for the rest of the test.
+# Waits for the first event instead of assuming a fixed startup delay,
+# so this isn't sensitive to how slow process/subprocess spawn is on
+# whatever machine runs the suite. ---
+cat > "$WORKDIR/config_live.json" <<'EOF'
+{ "urls": [ { "url": "https://example.test/live", "duration": 1, "cycles": 0 } ] }
+EOF
+
+: > "$XDOTOOL_LOG"
+export AUNDEKIOSK_CONFIG_FILE="$WORKDIR/config_live.json"
+
+PATH="$FAKE_BIN:$PATH" timeout 20 bash "$SWITCHER" > "$WORKDIR/output_live.txt" 2>&1 &
+SWITCHER_PID=$!
+
+waited=0
+while [[ ! -s "$XDOTOOL_LOG" ]] && (( waited < 100 )); do
+  sleep 0.1
+  waited=$(( waited + 1 ))
+done
+
+cat > "$WORKDIR/config_live.json" <<'EOF'
+{ "urls": [ { "url": "https://example.test/live", "duration": 60, "cycles": 0 } ] }
+EOF
+sleep 3
+
+kill "$SWITCHER_PID" 2>/dev/null || true
+wait "$SWITCHER_PID" 2>/dev/null || true
+
+ctrl_tab_count=$(grep -c "xdotool key ctrl+Tab" "$XDOTOOL_LOG")
+assert_eq "1" "$ctrl_tab_count" "switcher.sh re-reads duration from the config file every iteration, so an edit (1s -> 60s) takes effect without a service restart"
+
 rm -rf "$WORKDIR"
 assert_summary

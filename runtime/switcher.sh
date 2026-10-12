@@ -52,10 +52,7 @@ if ! has_urls "$CONFIG_FILE"; then
   exit 0
 fi
 
-mapfile -t URLS < <(extract_urls_from_config "$CONFIG_FILE")
-mapfile -t DURATIONS < <(extract_durations_from_config "$CONFIG_FILE")
-mapfile -t CYCLES < <(extract_cycles_from_config "$CONFIG_FILE")
-URL_COUNT=${#DURATIONS[@]}
+URL_COUNT=$(url_count_in_config "$CONFIG_FILE")
 
 REFRESH_COUNTS=()
 for ((i = 0; i < URL_COUNT; i++)); do
@@ -70,14 +67,21 @@ sleep "$STARTUP_DELAY"
 echo "AundeKiosk switcher started. Managing $URL_COUNT tabs."
 
 while true; do
-  duration=${DURATIONS[$CURRENT_TAB_INDEX]}
-  cycle_target=${CYCLES[$CURRENT_TAB_INDEX]}
+  # Read straight from the file on every iteration, never from an array
+  # loaded once at startup — a duration/cycle/URL edited and applied via
+  # the dashboard must take effect on the next tab switch, not only
+  # after the switcher service is restarted (found live: an admin's
+  # 10s -> 30s duration edit was silently ignored by an already-running
+  # switcher for the rest of its uptime).
+  url=$(url_at_index "$CONFIG_FILE" "$CURRENT_TAB_INDEX")
+  duration=$(duration_at_index "$CONFIG_FILE" "$CURRENT_TAB_INDEX")
+  cycle_target=$(cycles_at_index "$CONFIG_FILE" "$CURRENT_TAB_INDEX")
 
   REFRESH_COUNTS[$CURRENT_TAB_INDEX]=$(( REFRESH_COUNTS[CURRENT_TAB_INDEX] + 1 ))
 
   if should_refresh "${REFRESH_COUNTS[$CURRENT_TAB_INDEX]}" "$cycle_target"; then
     echo "Refreshing tab $((CURRENT_TAB_INDEX + 1))."
-    navigate_to_url "${URLS[$CURRENT_TAB_INDEX]}"
+    navigate_to_url "$url"
     REFRESH_COUNTS[$CURRENT_TAB_INDEX]=0
   fi
 

@@ -69,11 +69,39 @@ extract_cycles_from_config() {
   jq -r '.urls[].cycles' "$config_file" | tr -d '\r'
 }
 
+url_count_in_config() {
+  local config_file="$1"
+  jq -r '.urls | length' "$config_file" | tr -d '\r'
+}
+
 has_urls() {
   local config_file="$1"
-  local count
-  count=$(jq -r '.urls | length' "$config_file" | tr -d '\r')
-  [[ "$count" -gt 0 ]]
+  [[ "$(url_count_in_config "$config_file")" -gt 0 ]]
+}
+
+# Read straight from the file on every call, never from a cached array —
+# switcher.sh calls these once per loop iteration so a dashboard edit
+# (new duration, new cycle target, a changed URL) takes effect on the
+# very next iteration, instead of only after the switcher service is
+# restarted. Found live: an admin changed a URL's duration from 10s to
+# 30s and applied it, but the already-running switcher kept using the
+# 10s it had loaded once at its own startup, minutes earlier.
+url_at_index() {
+  local config_file="$1"
+  local index="$2"
+  jq -r ".urls[$index].url" "$config_file" | tr -d '\r'
+}
+
+duration_at_index() {
+  local config_file="$1"
+  local index="$2"
+  jq -r ".urls[$index].duration" "$config_file" | tr -d '\r'
+}
+
+cycles_at_index() {
+  local config_file="$1"
+  local index="$2"
+  jq -r ".urls[$index].cycles" "$config_file" | tr -d '\r'
 }
 
 should_refresh() {

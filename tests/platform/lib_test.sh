@@ -76,6 +76,42 @@ else
   assert_eq "no" "no" "has_urls returns false when config has no URLs"
 fi
 
+# --- url_count_in_config ---
+result=$(url_count_in_config "$FIXTURES/config_two_urls.json")
+assert_eq "2" "$result" "url_count_in_config counts the urls array"
+
+# --- url_at_index / duration_at_index / cycles_at_index ---
+# These read straight from the file on every call (no cached array) —
+# switcher.sh uses them so a dashboard edit (new duration, new cycles,
+# even a changed URL) takes effect on the very next loop iteration,
+# instead of only after the switcher service is restarted. Found live:
+# the admin changed a URL's duration from 10s to 30s and applied it, but
+# the already-running switcher kept using the 10s it had loaded at its
+# own startup, minutes earlier.
+result=$(url_at_index "$FIXTURES/config_two_urls.json" 1)
+assert_eq "https://example.org" "$result" "url_at_index reads the URL at the given index directly from the file"
+
+result=$(duration_at_index "$FIXTURES/config_two_urls.json" 0)
+assert_eq "10" "$result" "duration_at_index reads the duration at the given index directly from the file"
+
+result=$(cycles_at_index "$FIXTURES/config_two_urls.json" 0)
+assert_eq "5" "$result" "cycles_at_index reads the cycles at the given index directly from the file"
+
+# Rewriting the file between two calls must change what the next call
+# returns — proving these are live reads, not a value cached at the
+# first call (which is exactly the bug being fixed).
+cat > "$FIXTURES/config_live_edit.json" <<'EOF'
+{ "urls": [ { "url": "https://before.test", "duration": 10, "cycles": 0 } ] }
+EOF
+result=$(duration_at_index "$FIXTURES/config_live_edit.json" 0)
+assert_eq "10" "$result" "duration_at_index returns the original value before the file is edited"
+
+cat > "$FIXTURES/config_live_edit.json" <<'EOF'
+{ "urls": [ { "url": "https://after.test", "duration": 30, "cycles": 0 } ] }
+EOF
+result=$(duration_at_index "$FIXTURES/config_live_edit.json" 0)
+assert_eq "30" "$result" "duration_at_index reflects an edit made after the first call, without any restart"
+
 # --- should_refresh ---
 if should_refresh 5 10; then
   assert_eq "false" "true" "should_refresh is false before reaching the target"
