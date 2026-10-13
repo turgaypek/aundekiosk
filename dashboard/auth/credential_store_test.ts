@@ -362,3 +362,28 @@ Deno.test("a failed attempt that crosses the lockout threshold reports justLocke
     assertEquals(fifth.justLocked, true);
   });
 });
+
+Deno.test("hasAdmin is false (not a throw) when auth.db exists but is empty", async () => {
+  await withTempStore(async (storePath) => {
+    await Deno.writeTextFile(storePath, "");
+    const store = createCredentialStore({ storePath });
+    assertEquals(await store.hasAdmin(), false);
+  });
+});
+
+Deno.test("listUsers returns [] (not a throw) when auth.db contains unparseable JSON", async () => {
+  await withTempStore(async (storePath) => {
+    await Deno.writeTextFile(storePath, "{not valid json");
+    const store = createCredentialStore({ storePath });
+    assertEquals(JSON.stringify(await store.listUsers()), JSON.stringify([]));
+  });
+});
+
+Deno.test("createInitialAdmin succeeds against a corrupt auth.db, replacing it", async () => {
+  await withTempStore(async (storePath) => {
+    await Deno.writeTextFile(storePath, "{not valid json");
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    assertEquals(await store.hasAdmin(), true);
+  });
+});

@@ -27,17 +27,23 @@ async function readAuditEvents(dir: string): Promise<Record<string, unknown>[]> 
   }
 }
 
-function jsonRequest(path: string, body: unknown) {
-  return new Request(`http://localhost${path}`, {
+function jsonRequest(path: string, body: unknown, headers: Record<string, string> = {}) {
+  return new Request(`http://localhost:8099${path}`, {
     method: "POST",
     body: JSON.stringify(body),
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Host": "localhost:8099", ...headers },
+  });
+}
+
+function statusRequest(headers: Record<string, string> = {}) {
+  return new Request("http://localhost:8099/status", {
+    headers: { "Host": "localhost:8099", ...headers },
   });
 }
 
 Deno.test("GET /status reports zero usernames before any admin exists", async () => {
   await withApi(async (handle) => {
-    const res = await handle(new Request("http://localhost/status"));
+    const res = await handle(statusRequest());
     const body = await res.json();
     assertEquals(JSON.stringify(body.usernames), JSON.stringify([]));
   });
@@ -46,7 +52,7 @@ Deno.test("GET /status reports zero usernames before any admin exists", async ()
 Deno.test("GET /status lists existing usernames after create-admin", async () => {
   await withApi(async (handle) => {
     await handle(jsonRequest("/create-admin", { username: "admin", password: "a-long-enough-password" }));
-    const res = await handle(new Request("http://localhost/status"));
+    const res = await handle(statusRequest());
     const body = await res.json();
     assertEquals(JSON.stringify(body.usernames), JSON.stringify(["admin"]));
   });
@@ -118,6 +124,78 @@ Deno.test("POST /reset-password rejects a newPassword shorter than the minimum",
     await handle(jsonRequest("/create-admin", { username: "admin", password: "the-old-password" }));
     const res = await handle(jsonRequest("/reset-password", { username: "admin", newPassword: "short" }));
     assertEquals(res.status, 400);
+  });
+});
+
+Deno.test("GET /status with a Host header that isn't 127.0.0.1:8099/localhost:8099 is rejected with 400", async () => {
+  await withApi(async (handle) => {
+    const res = await handle(statusRequest({ "Host": "evil.example" }));
+    assertEquals(res.status, 400);
+  });
+});
+
+Deno.test("POST /reset-password with a Host header that isn't 127.0.0.1:8099/localhost:8099 is rejected with 400", async () => {
+  await withApi(async (handle) => {
+    await handle(jsonRequest("/create-admin", { username: "admin", password: "the-old-password" }));
+    const res = await handle(
+      jsonRequest("/reset-password", { username: "admin", newPassword: "the-new-password-123" }, { "Host": "evil.example" }),
+    );
+    assertEquals(res.status, 400);
+  });
+});
+
+Deno.test("POST /reset-password with a non-JSON Content-Type is rejected with 400 (blocks a simple cross-site POST)", async () => {
+  await withApi(async (handle) => {
+    await handle(jsonRequest("/create-admin", { username: "admin", password: "the-old-password" }));
+    const req = new Request("http://localhost:8099/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ username: "admin", newPassword: "the-new-password-123" }),
+      headers: { "Content-Type": "text/plain", "Host": "localhost:8099" },
+    });
+    const res = await handle(req);
+    assertEquals(res.status, 400);
+  });
+});
+
+Deno.test("POST /create-admin with a non-JSON Content-Type is rejected with 400 (blocks a simple cross-site POST)", async () => {
+  await withApi(async (handle) => {
+    const req = new Request("http://localhost:8099/create-admin", {
+      method: "POST",
+      body: JSON.stringify({ username: "admin", password: "a-long-enough-password" }),
+      headers: { "Content-Type": "text/plain", "Host": "localhost:8099" },
+    });
+    const res = await handle(req);
+    assertEquals(res.status, 400);
+  });
+});
+
+Deno.test("GET /status against an empty auth.db reports zero usernames, not a 500", async () => {
+  await withApi(async (handle, dir) => {
+    await Deno.writeTextFile(`${dir}/auth.db`, "");
+    const res = await handle(statusRequest());
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(JSON.stringify(body.usernames), JSON.stringify([]));
+  });
+});
+
+Deno.test("GET /status against a corrupt auth.db reports zero usernames, not a 500", async () => {
+  await withApi(async (handle, dir) => {
+    await Deno.writeTextFile(`${dir}/auth.db`, "{not valid json");
+    const res = await handle(statusRequest());
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(JSON.stringify(body.usernames), JSON.stringify([]));
+  });
+});
+
+Deno.test("POST /create-admin succeeds against a corrupt auth.db, replacing it", async () => {
+  await withApi(async (handle, dir) => {
+    await Deno.writeTextFile(`${dir}/auth.db`, "{not valid json");
+    const res = await handle(
+      jsonRequest("/create-admin", { username: "admin", password: "a-long-enough-password" }),
+    );
+    assertEquals(res.status, 201);
   });
 });
 

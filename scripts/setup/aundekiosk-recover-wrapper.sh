@@ -6,14 +6,21 @@
 # browser, or via an SSH port-forward
 # (ssh -L 8099:localhost:8099 pi@<this-pi>).
 #
-# auth.db is owned by the unprivileged 'aundekiosk' user, mode 0600 —
-# running this without root/sudo fails with a plain permission error
-# from Deno itself, which is enforcement enough; this script adds none
-# of its own.
+# Requires root only to switch to the aundekiosk user below — the
+# server itself then runs as aundekiosk, same as the dashboard, so a
+# recovery write can never leave auth.db/audit.log root-owned (which
+# would lock the dashboard out of its own files right after a recovery)
+# and so a dashboard-level compromise that edits dashboard/ code (which
+# this server imports) can never escalate to root just because an
+# admin later runs this tool (final review: Critical C1/C2).
 set -euo pipefail
 
-export DENO_DIR="/opt/aundekiosk/.deno"
-exec deno run \
+if [ "$(id -u)" -ne 0 ]; then
+    echo "aundekiosk-recover must be run as root: sudo aundekiosk-recover" >&2
+    exit 1
+fi
+
+exec runuser -u aundekiosk -- env DENO_DIR="/opt/aundekiosk/.deno" deno run \
     --cached-only \
     --lock=/opt/aundekiosk/dashboard/deno.lock \
     --allow-net=127.0.0.1:8099 \

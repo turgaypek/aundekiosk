@@ -82,7 +82,17 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
       if (error instanceof Deno.errors.NotFound) return { users: [] };
       throw error;
     }
-    const parsed: unknown = JSON.parse(text);
+    if (text.trim().length === 0) return { users: [] };
+    // An empty or corrupt auth.db (e.g. a card pulled mid-write, or a
+    // fully wiped file) must be recoverable the same way a missing one
+    // is — recovery/server.ts's whole purpose is to let an admin get
+    // back in, so this read path can't be the thing that keeps throwing.
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { users: [] };
+    }
     if (isLegacyFormat(parsed)) {
       return {
         users: [{

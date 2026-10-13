@@ -11,6 +11,26 @@ const MAX_USERNAME_LENGTH = 64;
 const MAX_PASSWORD_LENGTH = 1024;
 export const IDLE_EXIT_MS = 10 * 60 * 1000;
 
+// This tool can reset any user's password and binds to loopback, but
+// loopback is not a security boundary: the Pi's own kiosk Chromium is
+// continuously showing arbitrary third-party pages, any of which could
+// try a same-origin-policy-exempt POST or a DNS-rebinding attack against
+// 127.0.0.1:8099 while this tool happens to be running. Checking Host
+// blocks rebinding; requiring an application/json Content-Type on every
+// mutating request forces a CORS preflight that this server never
+// answers, so a browser never even sends the real cross-site request.
+const ALLOWED_HOSTS = new Set(["127.0.0.1:8099", "localhost:8099"]);
+
+function hasAllowedHost(req: Request): boolean {
+  const host = req.headers.get("host");
+  return host !== null && ALLOWED_HOSTS.has(host);
+}
+
+function hasJsonContentType(req: Request): boolean {
+  const contentType = req.headers.get("content-type");
+  return contentType !== null && contentType.toLowerCase().startsWith("application/json");
+}
+
 export interface RecoveryHandlerOptions {
   authStorePath?: string;
   auditLogPath?: string;
@@ -127,14 +147,19 @@ export function createHandler(options: RecoveryHandlerOptions = {}) {
   }
 
   return async function handle(req: Request): Promise<Response> {
+    if (!hasAllowedHost(req)) {
+      return new Response("Host not allowed.", { status: 400 });
+    }
     const url = new URL(req.url);
     if (url.pathname === "/status" && req.method === "GET") {
       return handleStatus();
     }
     if (url.pathname === "/reset-password" && req.method === "POST") {
+      if (!hasJsonContentType(req)) return new Response("Content-Type must be application/json.", { status: 400 });
       return handleResetPassword(req);
     }
     if (url.pathname === "/create-admin" && req.method === "POST") {
+      if (!hasJsonContentType(req)) return new Response("Content-Type must be application/json.", { status: 400 });
       return handleCreateAdmin(req);
     }
     return serveStatic(url.pathname);
