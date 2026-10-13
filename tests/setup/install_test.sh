@@ -211,6 +211,22 @@ assert_status 0 $? "install.sh writes an fstab tmpfs entry for the Chromium cach
 grep -qE "tmpfs[[:space:]]+\\\$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]+tmpfs[[:space:]]+size=\\\$\\{TMPFS_MB\\}m,mode=0700,uid=\\\$PI_SUID,gid=\\\$PI_SUID" "$INSTALL_SH"
 assert_status 0 $? "install.sh's fstab tmpfs entry sets uid=/gid= so a post-reboot automount is owned by the pi user, not root"
 
+# Found live on an update run: a plain `umount` of the Chromium cache
+# tmpfs fails with "target is busy" while aundekiosk-runner (chromium)
+# is actively using it — under `set -e`, that aborted the rest of
+# install.sh entirely, so systemd services were never reinstalled or
+# restarted. The kiosk must be stopped just long enough to force the
+# remount, then started again once the rest of the script has run —
+# never left stopped.
+grep -q "STOPPED_KIOSK_FOR_TMPFS_REMOUNT=1" "$INSTALL_SH"
+assert_status 0 $? "install.sh stops the kiosk before forcing a remount when a plain umount fails (target busy)"
+
+grep -qE 'systemctl stop aundekiosk-runner\.service aundekiosk-switcher\.service' "$INSTALL_SH"
+assert_status 0 $? "install.sh stops aundekiosk-runner/switcher before forcing the busy unmount"
+
+grep -qE 'systemctl start aundekiosk-runner\.service aundekiosk-switcher\.service' "$INSTALL_SH"
+assert_status 0 $? "install.sh restarts the kiosk at the end if it was stopped to force the tmpfs remount"
+
 grep -q "mountpoint -q" "$INSTALL_SH"
 assert_status 0 $? "install.sh only mounts the tmpfs cache if it isn't already mounted (idempotent re-runs)"
 

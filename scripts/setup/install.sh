@@ -140,8 +140,20 @@ install -d -m 0700 -o "$PI_USER" -g "$PI_USER" "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
 # means a previously-broken line gets corrected on the next update, too.
 sed -i "\\|^tmpfs[[:space:]]\\+$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]|d" /etc/fstab
 echo "tmpfs $AUNDEKIOSK_CHROMIUM_CACHE_DIR tmpfs size=${TMPFS_MB}m,mode=0700,uid=$PI_SUID,gid=$PI_SUID 0 0" >> /etc/fstab
+# Found live, on an update run: chromium (under aundekiosk-runner) was
+# actively using the existing mount, so a plain `umount` failed with
+# "target is busy" and — under `set -e` — aborted the rest of install.sh
+# entirely (systemd services never got reinstalled or restarted). If a
+# plain unmount fails, the kiosk is stopped just long enough to force it,
+# then restarted once the rest of this script (including the services
+# restart below) has run.
+STOPPED_KIOSK_FOR_TMPFS_REMOUNT=0
 if mountpoint -q "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"; then
-    umount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
+    if ! umount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR" 2>/dev/null; then
+        systemctl stop aundekiosk-runner.service aundekiosk-switcher.service 2>/dev/null || true
+        STOPPED_KIOSK_FOR_TMPFS_REMOUNT=1
+        umount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
+    fi
 fi
 mount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
 chown "$PI_USER:$PI_USER" "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
@@ -185,6 +197,11 @@ systemctl enable aundekiosk-runner.service aundekiosk-switcher.service aundekios
 # script after `git pull`) it's the only way the already-running
 # services actually pick up new code or a changed unit file.
 systemctl restart aundekiosk-dashboard.service aundekiosk-monitor.service
+
+if [[ "$STOPPED_KIOSK_FOR_TMPFS_REMOUNT" -eq 1 ]]; then
+    msg "$INFO" "Restarting the kiosk display (stopped earlier to force the corrected Chromium cache mount)..."
+    systemctl start aundekiosk-runner.service aundekiosk-switcher.service
+fi
 
 echo
 msg "$CALLOUT" "AundeKiosk is now installed."
