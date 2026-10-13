@@ -2,6 +2,7 @@ import type { createCredentialStore } from "./credential_store.ts";
 import type { createSessionStore } from "./session_store.ts";
 import type { createRateLimiter } from "./rate_limiter.ts";
 import type { createAuditLog } from "./audit_log.ts";
+import { MIN_PASSWORD_LENGTH } from "./password.ts";
 
 export interface AuthApiOptions {
   credentialStore: ReturnType<typeof createCredentialStore>;
@@ -11,7 +12,6 @@ export interface AuthApiOptions {
 }
 
 const SESSION_COOKIE = "aundekiosk_session";
-const MIN_PASSWORD_LENGTH = 12;
 const MAX_USERNAME_LENGTH = 64;
 const MAX_PASSWORD_LENGTH = 1024;
 

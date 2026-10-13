@@ -1,5 +1,11 @@
 import { argon2id, argon2Verify } from "npm:hash-wasm@4.11.0";
 
+// Shared by every endpoint that creates or changes a dashboard
+// password (auth_api.ts's initial setup, users_api.ts's create-user,
+// and recovery/server.ts's reset/create-admin) — one place, so the
+// policy can never drift between them.
+export const MIN_PASSWORD_LENGTH = 12;
+
 // Argon2id parameters per OWASP's baseline recommendation for interactive
 // logins (m=19MiB, t=2, p=1) — chosen to stay fast enough on a Raspberry
 // Pi's CPU while still meeting the memory-hardness argon2id is for.

@@ -2,8 +2,8 @@ import type { createCredentialStore } from "./credential_store.ts";
 import type { createStepUpGuard } from "./step_up.ts";
 import type { createAuditLog } from "./audit_log.ts";
 import { requireStepUp } from "./require_step_up.ts";
+import { MIN_PASSWORD_LENGTH } from "./password.ts";
 
-const MIN_PASSWORD_LENGTH = 12;
 const MAX_USERNAME_LENGTH = 64;
 // Deliberately loose (not a full RFC 5322 validator) — this only needs to
 // catch obvious typos before the address is stored for the SMTP
