@@ -52,6 +52,16 @@ for service in aundekiosk-dashboard aundekiosk-monitor aundekiosk-runner aundeki
   done
 done
 
+grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/apt-upgrade.sh start$" "$SUDOERS_FILE"
+assert_status 0 $? "sudoers file grants aundekiosk exactly the apt-upgrade.sh start line"
+
+grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/apt-upgrade.sh run$" "$SUDOERS_FILE"
+if [[ $? -eq 0 ]]; then
+  assert_eq "not-whitelisted" "whitelisted" "sudoers file must NOT grant 'run' directly — it's only ever reached via 'start''s own systemd-run call, already running as root"
+else
+  assert_eq "not-whitelisted" "not-whitelisted" "sudoers file must NOT grant 'run' directly — it's only ever reached via 'start''s own systemd-run call, already running as root"
+fi
+
 grep -qE '\*|\$\{|\$\(' "$SUDOERS_FILE"
 if [[ $? -eq 0 ]]; then
   assert_eq "no-wildcards" "has-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"

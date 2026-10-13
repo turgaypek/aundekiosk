@@ -386,6 +386,72 @@ async function saveOsPassword() {
   if (res.ok) document.getElementById("os-password-new").value = "";
 }
 
+// --- System Updates ------------------------------------------------------
+// apt-upgrade.sh runs update/upgrade as a detached systemd unit, so a
+// single GET /apt-upgrade/status poll (not a real push/stream) is enough
+// to show "live" progress — while it's running we just keep re-fetching
+// every couple seconds and re-rendering the log tail.
+const APT_UPGRADE_STATE_KEY = {
+  idle: "apt_upgrade_state_idle",
+  running: "apt_upgrade_state_running",
+  success: "apt_upgrade_state_success",
+  failed: "apt_upgrade_state_failed",
+};
+const APT_UPGRADE_STATE_BADGE_CLASS = {
+  idle: "bg-secondary",
+  running: "bg-info text-dark",
+  success: "bg-success",
+  failed: "bg-danger",
+};
+
+let aptUpgradePollTimer = null;
+
+function renderAptUpgradeStatus(status) {
+  const stateEl = document.getElementById("apt-upgrade-state");
+  if (!stateEl) return;
+  const key = APT_UPGRADE_STATE_KEY[status.state] ?? APT_UPGRADE_STATE_KEY.idle;
+  stateEl.textContent = window.aundekiosk?.t?.(key) ?? status.state;
+  stateEl.className = "badge " + (APT_UPGRADE_STATE_BADGE_CLASS[status.state] ?? APT_UPGRADE_STATE_BADGE_CLASS.idle);
+
+  document.getElementById("apt-upgrade-reboot-required").hidden = !status.rebootRequired;
+
+  const logEl = document.getElementById("apt-upgrade-log");
+  logEl.textContent = status.log;
+  logEl.scrollTop = logEl.scrollHeight;
+
+  document.getElementById("apt-upgrade-start").disabled = status.state === "running";
+}
+
+async function loadAptUpgradeStatus() {
+  const res = await fetch("/apt-upgrade/status");
+  if (!res.ok) return;
+  const status = await res.json();
+  renderAptUpgradeStatus(status);
+
+  if (status.state === "running") {
+    if (!aptUpgradePollTimer) {
+      aptUpgradePollTimer = setInterval(loadAptUpgradeStatus, 2000);
+    }
+  } else if (aptUpgradePollTimer) {
+    clearInterval(aptUpgradePollTimer);
+    aptUpgradePollTimer = null;
+  }
+}
+
+async function startAptUpgrade() {
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/apt-upgrade/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmPassword }),
+  });
+  if (!res.ok) {
+    alert(await res.text());
+  }
+  await loadAptUpgradeStatus();
+}
+
 // --- Users -------------------------------------------------------------
 function renderUserRow(user) {
   const template = document.getElementById("template-user");
@@ -511,6 +577,7 @@ if (typeof document !== "undefined") {
   updateNetworkFieldVisibility();
 
   document.getElementById("add-user-button")?.addEventListener("click", addUser);
+  document.getElementById("apt-upgrade-start")?.addEventListener("click", startAptUpgrade);
 
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.loadConfig = loadConfig;
@@ -520,4 +587,5 @@ if (typeof document !== "undefined") {
   window.aundekiosk.loadRemoteAccessStatus = loadRemoteAccessStatus;
   window.aundekiosk.loadUsers = loadUsers;
   window.aundekiosk.loadAuditLog = loadAuditLog;
+  window.aundekiosk.loadAptUpgradeStatus = loadAptUpgradeStatus;
 }

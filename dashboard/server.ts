@@ -18,6 +18,7 @@ import { createServiceControlApi } from "./service_control_api.ts";
 import { createMonitorEventsApi } from "./monitor_events_api.ts";
 import { createUsersApi } from "./auth/users_api.ts";
 import { createAuditLogApi } from "./audit_log_api.ts";
+import { createAptUpgradeApi } from "./apt_upgrade_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
@@ -30,6 +31,8 @@ const DEFAULT_AUTH_STORE_PATH = "/opt/aundekiosk/auth.db";
 const DEFAULT_AUDIT_LOG_PATH = "/opt/aundekiosk/audit.log";
 const DEFAULT_MONITOR_CONFIG_PATH = "/opt/aundekiosk/monitor-config.json";
 const DEFAULT_MONITOR_SAMPLE_PATH = `${import.meta.dirname}/../monitor-config.json.sample`;
+const DEFAULT_APT_UPGRADE_LOG_PATH = "/opt/aundekiosk/apt-upgrade.log";
+const DEFAULT_REBOOT_REQUIRED_PATH = "/var/run/reboot-required";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const LOGIN_RATE_LIMIT = { maxAttempts: 10, windowMs: 60_000 };
@@ -42,6 +45,8 @@ export interface HandlerOptions {
   auditLogPath?: string;
   monitorConfigPath?: string;
   monitorSamplePath?: string;
+  aptUpgradeLogPath?: string;
+  rebootRequiredPath?: string;
 }
 
 export function createHandler(options: HandlerOptions = {}) {
@@ -52,6 +57,8 @@ export function createHandler(options: HandlerOptions = {}) {
   const auditLogPath = options.auditLogPath ?? Deno.env.get("AUNDEKIOSK_AUDIT_LOG_FILE") ?? DEFAULT_AUDIT_LOG_PATH;
   const monitorConfigPath = options.monitorConfigPath ?? Deno.env.get("AUNDEKIOSK_MONITOR_CONFIG_FILE") ?? DEFAULT_MONITOR_CONFIG_PATH;
   const monitorSamplePath = options.monitorSamplePath ?? DEFAULT_MONITOR_SAMPLE_PATH;
+  const aptUpgradeLogPath = options.aptUpgradeLogPath ?? Deno.env.get("AUNDEKIOSK_APT_UPGRADE_LOG_FILE") ?? DEFAULT_APT_UPGRADE_LOG_PATH;
+  const rebootRequiredPath = options.rebootRequiredPath ?? Deno.env.get("AUNDEKIOSK_REBOOT_REQUIRED_FILE") ?? DEFAULT_REBOOT_REQUIRED_PATH;
 
   const serveStatic = createStaticHandler(publicDir);
   const configApi = createConfigApi({ configPath, samplePath });
@@ -170,6 +177,34 @@ export function createHandler(options: HandlerOptions = {}) {
     auditLog: createAuditLog({ logPath: auditLogPath }),
   });
   const auditLogApi = createAuditLogApi({ auditLogPath });
+  const aptUpgradeApi = createAptUpgradeApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
+    runPrivilegedStart: async () => {
+      await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/apt-upgrade.sh", "start"]);
+    },
+    checkUnitActive: () => checkServiceStatus("aundekiosk-apt-upgrade").then((status) => status === "active"),
+    readLog: async () => {
+      try {
+        return await Deno.readTextFile(aptUpgradeLogPath);
+      } catch (error) {
+        if (error instanceof Deno.errors.NotFound) return "";
+        throw error;
+      }
+    },
+    checkRebootRequired: async () => {
+      try {
+        await Deno.stat(rebootRequiredPath);
+        return true;
+      } catch (error) {
+        if (error instanceof Deno.errors.NotFound) return false;
+        throw error;
+      }
+    },
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -323,6 +358,21 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return usersApi.handleDelete(req, session.username, ip);
+    }
+
+    if (url.pathname === "/apt-upgrade/start" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return aptUpgradeApi.handleStart(req, session.username, ip);
+    }
+
+    if (url.pathname === "/apt-upgrade/status" && req.method === "GET") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return aptUpgradeApi.handleStatus();
     }
 
     return serveStatic(url.pathname);

@@ -55,6 +55,9 @@ async function bootstrapAuth() {
     if (state === "app" && window.aundekiosk?.loadAuditLog) {
       window.aundekiosk.loadAuditLog();
     }
+    if (state === "app" && window.aundekiosk?.loadAptUpgradeStatus) {
+      window.aundekiosk.loadAptUpgradeStatus();
+    }
   }
 
   const setupForm = document.getElementById("setup-form");

@@ -79,6 +79,14 @@
   "os_password_hint": "Wird auch für die Anmeldung über SSH und VNC verwendet.",
   "os_password_placeholder": "Neues Passwort (mind. 12 Zeichen)",
   "os_password_save_button": "Ändern",
+  "apt_upgrade_heading": "Systemaktualisierungen",
+  "apt_upgrade_hint": "Läuft im Hintergrund; Sie können diese Seite verlassen und zurückkehren, ohne den Vorgang zu unterbrechen.",
+  "apt_upgrade_start_button": "Nach Updates suchen & aktualisieren",
+  "apt_upgrade_state_idle": "Inaktiv",
+  "apt_upgrade_state_running": "Läuft…",
+  "apt_upgrade_state_success": "Aktuell",
+  "apt_upgrade_state_failed": "Fehlgeschlagen",
+  "apt_upgrade_reboot_required": "Neustart erforderlich",
   "users_heading": "Benutzer",
   "users_username_placeholder": "Benutzername",
   "users_email_placeholder": "E-Mail (optional)",
@@ -111,5 +119,8 @@
   "audit_event_snmp_configured": "{username} hat die SNMP-Konfiguration geändert ({status}) (IP: {ip})",
   "audit_event_service_toggled": "{username} hat den Dienst '{service}' {action} ({status}) (IP: {ip})",
   "audit_event_user_created": "{username} hat den Benutzer '{targetUsername}' erstellt ({status}) (IP: {ip})",
-  "audit_event_user_deleted": "{username} hat den Benutzer '{targetUsername}' gelöscht ({status}) (IP: {ip})"
+  "audit_event_user_deleted": "{username} hat den Benutzer '{targetUsername}' gelöscht ({status}) (IP: {ip})",
+  "audit_event_apt_upgrade_requested": "{username} hat eine Systemaktualisierung angefordert ({status}) (IP: {ip})",
+  "audit_event_apt_upgrade_started": "Systemaktualisierung gestartet",
+  "audit_event_apt_upgrade_finished": "Systemaktualisierung abgeschlossen ({status})"
 }

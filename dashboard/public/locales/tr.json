@@ -79,6 +79,14 @@
   "os_password_hint": "SSH ve VNC girişinde de bu şifre kullanılır.",
   "os_password_placeholder": "Yeni şifre (en az 12 karakter)",
   "os_password_save_button": "Değiştir",
+  "apt_upgrade_heading": "Sistem Güncellemeleri",
+  "apt_upgrade_hint": "Arka planda çalışır; bu sayfadan ayrılıp geri dönebilirsiniz, işlem kesintiye uğramaz.",
+  "apt_upgrade_start_button": "Güncellemeleri kontrol et ve yükselt",
+  "apt_upgrade_state_idle": "Boşta",
+  "apt_upgrade_state_running": "Çalışıyor…",
+  "apt_upgrade_state_success": "Güncel",
+  "apt_upgrade_state_failed": "Başarısız",
+  "apt_upgrade_reboot_required": "Yeniden başlatma gerekiyor",
   "users_heading": "Kullanıcılar",
   "users_username_placeholder": "Kullanıcı adı",
   "users_email_placeholder": "E-posta (opsiyonel)",
@@ -111,5 +119,8 @@
   "audit_event_snmp_configured": "{username} SNMP ayarlarını değiştirdi ({status}) (IP: {ip})",
   "audit_event_service_toggled": "{username} '{service}' servisini {action} ({status}) (IP: {ip})",
   "audit_event_user_created": "{username} '{targetUsername}' kullanıcısını oluşturdu ({status}) (IP: {ip})",
-  "audit_event_user_deleted": "{username} '{targetUsername}' kullanıcısını sildi ({status}) (IP: {ip})"
+  "audit_event_user_deleted": "{username} '{targetUsername}' kullanıcısını sildi ({status}) (IP: {ip})",
+  "audit_event_apt_upgrade_requested": "{username} sistem güncellemesi başlattı ({status}) (IP: {ip})",
+  "audit_event_apt_upgrade_started": "Sistem güncellemesi başladı",
+  "audit_event_apt_upgrade_finished": "Sistem güncellemesi tamamlandı ({status})"
 }

@@ -79,6 +79,14 @@
   "os_password_hint": "Also used to log in over SSH and VNC.",
   "os_password_placeholder": "New password (min 12 characters)",
   "os_password_save_button": "Change",
+  "apt_upgrade_heading": "System Updates",
+  "apt_upgrade_hint": "Runs in the background; you can leave this page and come back without interrupting it.",
+  "apt_upgrade_start_button": "Check for updates & upgrade",
+  "apt_upgrade_state_idle": "Idle",
+  "apt_upgrade_state_running": "Running…",
+  "apt_upgrade_state_success": "Up to date",
+  "apt_upgrade_state_failed": "Failed",
+  "apt_upgrade_reboot_required": "Reboot required",
   "users_heading": "Users",
   "users_username_placeholder": "Username",
   "users_email_placeholder": "Email (optional)",
@@ -111,5 +119,8 @@
   "audit_event_snmp_configured": "{username} changed the SNMP configuration ({status}) (IP: {ip})",
   "audit_event_service_toggled": "{username} {action} the '{service}' service ({status}) (IP: {ip})",
   "audit_event_user_created": "{username} created user '{targetUsername}' ({status}) (IP: {ip})",
-  "audit_event_user_deleted": "{username} deleted user '{targetUsername}' ({status}) (IP: {ip})"
+  "audit_event_user_deleted": "{username} deleted user '{targetUsername}' ({status}) (IP: {ip})",
+  "audit_event_apt_upgrade_requested": "{username} requested a system update ({status}) (IP: {ip})",
+  "audit_event_apt_upgrade_started": "System update started",
+  "audit_event_apt_upgrade_finished": "System update finished ({status})"
 }
