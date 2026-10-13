@@ -153,6 +153,93 @@
             <ul class="list-group list-group-flush small" id="monitor-events-list"></ul>
           </div>
         </div>
+
+        <div id="remote-access" class="card mb-4">
+          <div class="card-header">
+            <h2 class="h5 my-0" data-i18n="remote_access_heading">System / Remote Access</h2>
+          </div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush mb-4" id="remote-access-list"></ul>
+
+            <h3 class="h6" data-i18n="hostname_heading">Hostname</h3>
+            <p class="text-body-secondary small" data-i18n="hostname_hint">A reboot is required for every service to pick up a new hostname.</p>
+            <div class="d-flex flex-wrap gap-2 mb-4">
+              <input id="hostname-input" type="text" class="form-control" style="max-width: 260px" data-i18n-placeholder="hostname_placeholder" />
+              <button id="hostname-save" type="button" class="btn btn-danger" data-i18n="hostname_save_button">Save</button>
+            </div>
+
+            <hr class="my-4" />
+
+            <h3 class="h6" data-i18n="network_heading">Network</h3>
+            <div class="row g-2 mb-2">
+              <div class="col-auto">
+                <label class="form-label" data-i18n="network_interface_label">Interface</label>
+                <select id="network-interface" class="form-select">
+                  <option value="eth0">eth0</option>
+                  <option value="wlan0">wlan0</option>
+                </select>
+              </div>
+              <div class="col-auto">
+                <label class="form-label" data-i18n="network_mode_label">Mode</label>
+                <select id="network-mode" class="form-select">
+                  <option value="dhcp">DHCP</option>
+                  <option value="static" data-i18n="network_mode_static">Static</option>
+                </select>
+              </div>
+            </div>
+            <div id="network-static-fields" class="row g-2 mb-2" hidden>
+              <div class="col-auto"><input id="network-static-ip" type="text" class="form-control" data-i18n-placeholder="network_static_ip_placeholder" /></div>
+              <div class="col-auto"><input id="network-gateway" type="text" class="form-control" data-i18n-placeholder="network_gateway_placeholder" /></div>
+              <div class="col-auto"><input id="network-dns" type="text" class="form-control" data-i18n-placeholder="network_dns_placeholder" /></div>
+            </div>
+            <div id="network-wifi-fields" class="row g-2 mb-2" hidden>
+              <div class="col-auto"><input id="network-wifi-ssid" type="text" class="form-control" data-i18n-placeholder="network_wifi_ssid_placeholder" /></div>
+              <div class="col-auto"><input id="network-wifi-password" type="password" class="form-control" data-i18n-placeholder="network_wifi_password_placeholder" /></div>
+            </div>
+            <p class="text-body-secondary small" data-i18n="network_hint">Applying reverts automatically in 60 seconds unless you confirm you can still reach the dashboard.</p>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+              <button id="network-apply" type="button" class="btn btn-danger" data-i18n="network_apply_button">Apply</button>
+              <button id="network-confirm" type="button" class="btn btn-success" data-i18n="network_confirm_button" hidden>Confirm</button>
+            </div>
+
+            <hr class="my-4" />
+
+            <h3 class="h6" data-i18n="snmp_heading">SNMP</h3>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="snmp-enabled" checked />
+              <label class="form-check-label" for="snmp-enabled" data-i18n="snmp_enabled_label">Enabled</label>
+            </div>
+            <div id="snmp-fields" class="row g-2 mb-2">
+              <div class="col-auto"><input id="snmp-username" type="text" class="form-control" data-i18n-placeholder="snmp_username_placeholder" /></div>
+              <div class="col-auto">
+                <select id="snmp-auth-protocol" class="form-select">
+                  <option value="SHA">SHA</option>
+                  <option value="SHA-256">SHA-256</option>
+                </select>
+              </div>
+              <div class="col-auto"><input id="snmp-auth-passphrase" type="password" class="form-control" data-i18n-placeholder="snmp_auth_passphrase_placeholder" /></div>
+              <div class="col-auto">
+                <select id="snmp-priv-protocol" class="form-select">
+                  <option value="AES">AES</option>
+                </select>
+              </div>
+              <div class="col-auto"><input id="snmp-priv-passphrase" type="password" class="form-control" data-i18n-placeholder="snmp_priv_passphrase_placeholder" /></div>
+              <div class="col-auto"><input id="snmp-allowed-source" type="text" class="form-control" data-i18n-placeholder="snmp_allowed_source_placeholder" /></div>
+            </div>
+            <div class="mb-4">
+              <button id="snmp-save" type="button" class="btn btn-danger" data-i18n="snmp_save_button">Save</button>
+            </div>
+
+            <hr class="my-4" />
+
+            <h3 class="h6" data-i18n="os_password_heading">System Password</h3>
+            <p class="text-body-secondary small" data-i18n="os_password_hint">Also used to log in over SSH and VNC.</p>
+            <div class="d-flex flex-wrap gap-2">
+              <input id="os-password-new" type="password" class="form-control" style="max-width: 260px" data-i18n-placeholder="os_password_placeholder" />
+              <button id="os-password-save" type="button" class="btn btn-danger" data-i18n="os_password_save_button">Change</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <footer class="aundekiosk-footer text-center small py-4" data-i18n="footer_credit">
@@ -177,6 +264,19 @@
         <span>
           <button type="button" class="btn btn-sm btn-success service-start" data-i18n="service_start_button">Start</button>
           <button type="button" class="btn btn-sm btn-outline-danger service-stop" data-i18n="service_stop_button">Stop</button>
+        </span>
+      </li>
+    </template>
+
+    <template id="template-remote-access">
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>
+          <span class="remote-access-name fw-semibold"></span>
+          <span class="badge ms-2 remote-access-status"></span>
+        </span>
+        <span>
+          <button type="button" class="btn btn-sm btn-success remote-access-enable" data-i18n="service_start_button">Start</button>
+          <button type="button" class="btn btn-sm btn-outline-danger remote-access-disable" data-i18n="service_stop_button">Stop</button>
         </span>
       </li>
     </template>

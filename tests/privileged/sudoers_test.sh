@@ -34,6 +34,16 @@ done
 grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/configure-snmp.sh$" "$SUDOERS_FILE"
 assert_status 0 $? "sudoers file grants aundekiosk exactly the configure-snmp.sh line"
 
+for line in \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-vnc.sh enable" \
+  "aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-vnc.sh disable"; do
+  grep -qF "$line" "$SUDOERS_FILE"
+  assert_status 0 $? "sudoers file grants the exact line: $line"
+done
+
+grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/change-hostname.sh$" "$SUDOERS_FILE"
+assert_status 0 $? "sudoers file grants aundekiosk exactly the change-hostname.sh line"
+
 for service in aundekiosk-dashboard aundekiosk-monitor aundekiosk-runner aundekiosk-switcher; do
   for action in start stop; do
     line="aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-service.sh $service $action"

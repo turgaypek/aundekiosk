@@ -67,6 +67,14 @@ is_safe_secret_value() {
   [[ "$1" != *$'\n'* && "$1" != *$'\r'* ]]
 }
 
+# RFC 1123 hostname label: 1-63 characters, letters/digits/hyphens only,
+# never starting or ending with a hyphen. change-hostname.sh hands this
+# straight to raspi-config, so anything that isn't a clean label (a
+# space, a dot, a shell metacharacter) must never reach it.
+is_valid_hostname() {
+  [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ ]]
+}
+
 # The only four systemd units a dashboard operator is ever allowed to
 # start/stop from the UI — never an arbitrary unit name.
 is_valid_aundekiosk_service() {

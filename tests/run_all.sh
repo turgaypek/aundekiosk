@@ -14,7 +14,9 @@ for t in \
   "$SCRIPT_DIR/privileged/lib_test.sh" \
   "$SCRIPT_DIR/privileged/toggle_ssh_test.sh" \
   "$SCRIPT_DIR/privileged/toggle_ssh_password_auth_test.sh" \
+  "$SCRIPT_DIR/privileged/toggle_vnc_test.sh" \
   "$SCRIPT_DIR/privileged/change_os_password_test.sh" \
+  "$SCRIPT_DIR/privileged/change_hostname_test.sh" \
   "$SCRIPT_DIR/privileged/network_config_test.sh" \
   "$SCRIPT_DIR/privileged/rollback_network_test.sh" \
   "$SCRIPT_DIR/privileged/confirm_network_config_test.sh" \

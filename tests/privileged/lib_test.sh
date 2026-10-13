@@ -184,4 +184,29 @@ for bad in "sshd" "aundekiosk-dashboard; rm -rf /" "aundekiosk" ""; do
   fi
 done
 
+# --- is_valid_hostname --- (RFC 1123 label: letters/digits/hyphens,
+# 1-63 chars, never starting or ending with a hyphen — change-hostname.sh
+# hands this straight to raspi-config, so a value that isn't a clean
+# hostname must never reach it)
+for good in "pi" "kiosk-1" "UstyapiUretimDigitalPano" "a" "a1-b2"; do
+  if is_valid_hostname "$good"; then
+    assert_eq "valid" "valid" "is_valid_hostname accepts '$good'"
+  else
+    assert_eq "valid" "invalid" "is_valid_hostname accepts '$good'"
+  fi
+done
+for bad in "" "-kiosk" "kiosk-" "kiosk.local" "kiosk name" "kiosk;rm -rf /" "kiosk_1"; do
+  if is_valid_hostname "$bad"; then
+    assert_eq "invalid" "valid" "is_valid_hostname rejects '$bad'"
+  else
+    assert_eq "invalid" "invalid" "is_valid_hostname rejects '$bad'"
+  fi
+done
+TOO_LONG_HOSTNAME=$(printf 'a%.0s' $(seq 1 64))
+if is_valid_hostname "$TOO_LONG_HOSTNAME"; then
+  assert_eq "invalid" "valid" "is_valid_hostname rejects a hostname over 63 characters"
+else
+  assert_eq "invalid" "invalid" "is_valid_hostname rejects a hostname over 63 characters"
+fi
+
 assert_summary

@@ -11,6 +11,9 @@ import { createSshApi } from "./ssh_api.ts";
 import { createOsPasswordApi } from "./os_password_api.ts";
 import { createNetworkApi } from "./network_api.ts";
 import { createSnmpApi } from "./snmp_api.ts";
+import { createVncApi } from "./vnc_api.ts";
+import { createHostnameApi } from "./hostname_api.ts";
+import { createRemoteAccessApi } from "./remote_access_api.ts";
 import { createServiceControlApi } from "./service_control_api.ts";
 import { createMonitorEventsApi } from "./monitor_events_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
@@ -115,20 +118,46 @@ export function createHandler(options: HandlerOptions = {}) {
       );
     },
   });
+  const vncApi = createVncApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
+    runPrivilegedToggle: async (action) => {
+      await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-vnc.sh", action]);
+    },
+  });
+  const hostnameApi = createHostnameApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
+    runPrivilegedChange: async (hostname) => {
+      await runPrivilegedCommand(
+        "sudo",
+        ["/opt/aundekiosk/privileged/change-hostname.sh"],
+        JSON.stringify({ hostname }),
+      );
+    },
+  });
+  // Shared by serviceControlApi (AundeKiosk's own 4 units) and
+  // remoteAccessApi (ssh/wayvnc) — reading a unit's status needs no
+  // elevated privilege, so this never goes through sudo.
+  const checkServiceStatus = async (service: string) => {
+    const command = new Deno.Command("systemctl", { args: ["is-active", service], stdout: "piped", stderr: "piped" });
+    const { stdout } = await command.output();
+    return new TextDecoder().decode(stdout).trim();
+  };
   const serviceControlApi = createServiceControlApi({
     auditLog: createAuditLog({ logPath: auditLogPath }),
     runPrivilegedToggle: async (service, action) => {
       await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/toggle-service.sh", service, action]);
     },
-    // Reading a unit's status needs no elevated privilege — any local
-    // user can query systemd over the system bus — so this runs
-    // directly, never through sudo/toggle-service.sh.
-    checkServiceStatus: async (service) => {
-      const command = new Deno.Command("systemctl", { args: ["is-active", service], stdout: "piped", stderr: "piped" });
-      const { stdout } = await command.output();
-      return new TextDecoder().decode(stdout).trim();
-    },
+    checkServiceStatus,
   });
+  const remoteAccessApi = createRemoteAccessApi({ checkServiceStatus });
   const monitorEventsApi = createMonitorEventsApi({ auditLogPath });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
@@ -208,6 +237,29 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return snmpApi.handleConfigure(req, session.username, ip);
+    }
+
+    if (url.pathname === "/remote-access-status" && req.method === "GET") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return remoteAccessApi.handleStatus();
+    }
+
+    if (url.pathname === "/vnc-config" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return vncApi.handleToggle(req, session.username, ip);
+    }
+
+    if (url.pathname === "/hostname-config" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return hostnameApi.handleChange(req, session.username, ip);
     }
 
     if (url.pathname === "/service-status" && req.method === "GET") {

@@ -208,6 +208,184 @@ async function loadMonitorEvents() {
   }
 }
 
+// --- System / Remote Access -------------------------------------------
+// SSH/VNC toggles, hostname, network, SNMP, and the OS password all go
+// through step-up re-authentication on the backend (unlike the
+// AundeKiosk service toggles above) — these are genuinely sensitive
+// system-level changes, not "restart one of our own four units". A
+// prompt() for the current password, right before the request, is the
+// simplest honest UI for that: the admin always sees exactly what
+// they're about to do before they're asked to confirm it.
+function promptForStepUp() {
+  const text = window.aundekiosk?.t?.("step_up_password_prompt");
+  return prompt(text || "Re-enter your current password to confirm:");
+}
+
+const REMOTE_ACCESS_LABEL_KEYS = { ssh: "remote_access_name_ssh", vnc: "remote_access_name_vnc" };
+
+function renderRemoteAccessRow(service, status) {
+  const template = document.getElementById("template-remote-access");
+  const row = template.content.firstElementChild.cloneNode(true);
+  row.dataset.service = service;
+  window.aundekiosk?.translateSubtree?.(row);
+  const key = REMOTE_ACCESS_LABEL_KEYS[service];
+  row.querySelector(".remote-access-name").textContent = (key && window.aundekiosk?.t?.(key)) || service;
+  const badge = row.querySelector(".remote-access-status");
+  badge.textContent = status;
+  badge.classList.add(status === "active" ? "bg-success" : "bg-secondary");
+  row.querySelector(".remote-access-enable").addEventListener("click", () => toggleRemoteAccess(service, "enable"));
+  row.querySelector(".remote-access-disable").addEventListener("click", () => toggleRemoteAccess(service, "disable"));
+  return row;
+}
+
+async function loadRemoteAccessStatus() {
+  const list = document.getElementById("remote-access-list");
+  if (!list) return;
+  const res = await fetch("/remote-access-status");
+  if (!res.ok) return;
+  const statuses = await res.json();
+  list.innerHTML = "";
+  for (const [service, status] of Object.entries(statuses)) {
+    list.appendChild(renderRemoteAccessRow(service, status));
+  }
+}
+
+async function toggleRemoteAccess(service, action) {
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch(service === "ssh" ? "/ssh-config" : "/vnc-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) await loadRemoteAccessStatus();
+}
+
+async function saveHostname() {
+  const hostname = document.getElementById("hostname-input").value.trim();
+  if (!hostname) return;
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/hostname-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hostname, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+}
+
+function updateNetworkFieldVisibility() {
+  const mode = document.getElementById("network-mode").value;
+  const iface = document.getElementById("network-interface").value;
+  document.getElementById("network-static-fields").hidden = mode !== "static";
+  document.getElementById("network-wifi-fields").hidden = iface !== "wlan0";
+}
+
+let networkConfirmTimer = null;
+
+function showNetworkConfirmButton() {
+  const button = document.getElementById("network-confirm");
+  button.hidden = false;
+  let secondsLeft = 60;
+  const labelKey = "network_confirm_button_countdown";
+  const render = () => {
+    button.textContent = window.aundekiosk?.t?.(labelKey, { seconds: secondsLeft }) ?? `Confirm (${secondsLeft}s)`;
+  };
+  render();
+  clearInterval(networkConfirmTimer);
+  networkConfirmTimer = setInterval(() => {
+    secondsLeft -= 1;
+    if (secondsLeft <= 0) {
+      clearInterval(networkConfirmTimer);
+      button.hidden = true;
+      return;
+    }
+    render();
+  }, 1000);
+}
+
+async function applyNetworkConfig() {
+  const iface = document.getElementById("network-interface").value;
+  const mode = document.getElementById("network-mode").value;
+  const payload = {
+    interface: iface,
+    mode,
+    staticIp: mode === "static" ? document.getElementById("network-static-ip").value.trim() : null,
+    gateway: mode === "static" ? document.getElementById("network-gateway").value.trim() : null,
+    dns: mode === "static" ? document.getElementById("network-dns").value.trim() : null,
+    wifiSsid: iface === "wlan0" ? document.getElementById("network-wifi-ssid").value.trim() : null,
+    wifiPassword: iface === "wlan0" ? document.getElementById("network-wifi-password").value : null,
+  };
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/network-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) showNetworkConfirmButton();
+}
+
+async function confirmNetworkConfig() {
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/network-confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) {
+    clearInterval(networkConfirmTimer);
+    document.getElementById("network-confirm").hidden = true;
+  }
+}
+
+async function saveSnmpConfig() {
+  const enabled = document.getElementById("snmp-enabled").checked;
+  const payload = enabled
+    ? {
+        enabled: true,
+        username: document.getElementById("snmp-username").value.trim(),
+        authProtocol: document.getElementById("snmp-auth-protocol").value,
+        authPassphrase: document.getElementById("snmp-auth-passphrase").value,
+        privProtocol: document.getElementById("snmp-priv-protocol").value,
+        privPassphrase: document.getElementById("snmp-priv-passphrase").value,
+        allowedSource: document.getElementById("snmp-allowed-source").value.trim(),
+      }
+    : { enabled: false };
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/snmp-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+}
+
+async function saveOsPassword() {
+  const newPassword = document.getElementById("os-password-new").value;
+  if (!newPassword) return;
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/os-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ newPassword, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) document.getElementById("os-password-new").value = "";
+}
+
 if (typeof document !== "undefined") {
   document.getElementById("add-url")?.addEventListener("click", () => {
     const input = document.getElementById("new-url");
@@ -226,9 +404,19 @@ if (typeof document !== "undefined") {
   });
   document.getElementById("monitor-save")?.addEventListener("click", saveMonitorConfig);
 
+  document.getElementById("hostname-save")?.addEventListener("click", saveHostname);
+  document.getElementById("network-interface")?.addEventListener("change", updateNetworkFieldVisibility);
+  document.getElementById("network-mode")?.addEventListener("change", updateNetworkFieldVisibility);
+  document.getElementById("network-apply")?.addEventListener("click", applyNetworkConfig);
+  document.getElementById("network-confirm")?.addEventListener("click", confirmNetworkConfig);
+  document.getElementById("snmp-save")?.addEventListener("click", saveSnmpConfig);
+  document.getElementById("os-password-save")?.addEventListener("click", saveOsPassword);
+  updateNetworkFieldVisibility();
+
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.loadConfig = loadConfig;
   window.aundekiosk.loadServiceStatus = loadServiceStatus;
   window.aundekiosk.loadMonitorConfig = loadMonitorConfig;
   window.aundekiosk.loadMonitorEvents = loadMonitorEvents;
+  window.aundekiosk.loadRemoteAccessStatus = loadRemoteAccessStatus;
 }
