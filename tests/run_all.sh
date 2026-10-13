@@ -22,6 +22,7 @@ for t in \
   "$SCRIPT_DIR/privileged/confirm_network_config_test.sh" \
   "$SCRIPT_DIR/privileged/configure_snmp_test.sh" \
   "$SCRIPT_DIR/privileged/apt_upgrade_test.sh" \
+  "$SCRIPT_DIR/setup/aundekiosk_recover_wrapper_test.sh" \
   "$SCRIPT_DIR/services/templates_test.sh" \
   "$SCRIPT_DIR/setup/install_test.sh" \
   "$SCRIPT_DIR/setup/generate_tls_cert_test.sh" \
