@@ -136,6 +136,21 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     await write({ users: next });
   }
 
+  async function resetPasswordLocked(username: string, newPassword: string): Promise<void> {
+    const file = await read();
+    const index = file.users.findIndex((u) => u.username === username);
+    if (index === -1) {
+      throw new Error(`User '${username}' does not exist.`);
+    }
+    const passwordHash = await hashPassword(newPassword);
+    // Clearing failedAttempts/lockedUntil here (not just the hash) is
+    // the whole point for a recovery tool: a user who got locked out is
+    // still locked out after a password reset unless this is cleared
+    // too, defeating the one thing the tool exists to fix.
+    file.users[index] = { ...file.users[index], passwordHash, failedAttempts: 0, lockedUntil: null };
+    await write(file);
+  }
+
   async function listUsersLocked(): Promise<PublicUserRecord[]> {
     const file = await read();
     return file.users.map(({ passwordHash: _passwordHash, ...rest }) => rest);
@@ -204,6 +219,8 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     createUser: (username: string, password: string, email: string | null) =>
       serialize(() => createUserLocked(username, password, email)),
     deleteUser: (username: string) => serialize(() => deleteUserLocked(username)),
+    resetPassword: (username: string, newPassword: string) =>
+      serialize(() => resetPasswordLocked(username, newPassword)),
     listUsers: () => serialize(() => listUsersLocked()),
     verifyCredentials: (username: string, password: string, now: number = Date.now()) =>
       serialize(() => verifyCredentialsLocked(username, password, now)),

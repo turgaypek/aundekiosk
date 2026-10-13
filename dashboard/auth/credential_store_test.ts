@@ -294,6 +294,58 @@ Deno.test("an old-format file upgrades to the multi-user format on disk the firs
   });
 });
 
+Deno.test("resetPassword changes the password hash so the new password logs in and the old one no longer does", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "the-old-password");
+
+    await store.resetPassword("admin", "the-new-password-123");
+
+    const withNew = await store.verifyCredentials("admin", "the-new-password-123");
+    assertEquals(withNew.outcome, "success");
+
+    const withOld = await store.verifyCredentials("admin", "the-old-password");
+    assertEquals(withOld.outcome, "invalid");
+  });
+});
+
+Deno.test("resetPassword clears a lockout, so a previously locked-out user can log in immediately with the new password", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "the-old-password");
+
+    const now = 5_000_000;
+    for (let i = 0; i < 5; i++) {
+      await store.verifyCredentials("admin", "wrong-password", now);
+    }
+    const lockedCheck = await store.verifyCredentials("admin", "the-old-password", now);
+    assertEquals(lockedCheck.outcome, "locked");
+
+    await store.resetPassword("admin", "the-new-password-123");
+
+    const afterReset = await store.verifyCredentials("admin", "the-new-password-123", now);
+    assertEquals(afterReset.outcome, "success");
+  });
+});
+
+Deno.test("resetPassword on a username that doesn't exist throws, without touching any other account", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "the-old-password");
+
+    let threw = false;
+    try {
+      await store.resetPassword("nobody", "the-new-password-123");
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true);
+
+    const stillWorks = await store.verifyCredentials("admin", "the-old-password");
+    assertEquals(stillWorks.outcome, "success");
+  });
+});
+
 Deno.test("a failed attempt that crosses the lockout threshold reports justLocked:true, and earlier ones report false", async () => {
   await withTempStore(async (storePath) => {
     const store = createCredentialStore({ storePath });
