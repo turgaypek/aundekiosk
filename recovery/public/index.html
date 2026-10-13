@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AundeKiosk Recovery Tool</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #1a1a1a; color: #eee; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+  h1 { font-size: 1.3rem; }
+  p.hint { color: #aaa; font-size: 0.9rem; }
+  label { display: block; margin-top: 12px; font-size: 0.9rem; }
+  input, select { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; background: #2a2a2a; color: #eee; border: 1px solid #444; border-radius: 4px; }
+  button { margin-top: 16px; padding: 10px 16px; background: #c0392b; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  #message { margin-top: 16px; padding: 10px; border-radius: 4px; display: none; }
+  #message.success { display: block; background: #1e4620; color: #9fe39f; }
+  #message.error { display: block; background: #4a1f1f; color: #f29c9c; }
+</style>
+</head>
+<body>
+<h1>AundeKiosk Recovery Tool</h1>
+<p class="hint">
+  This tool is only reachable at 127.0.0.1 and requires root to have started it.
+  It directly edits the dashboard's own credential file — there is no login here.
+</p>
+
+<div id="reset-view" hidden>
+  <label for="reset-username">User</label>
+  <select id="reset-username"></select>
+  <label for="reset-password">New password (min 12 characters)</label>
+  <input id="reset-password" type="password" />
+  <button id="reset-button" type="button">Reset password</button>
+</div>
+
+<div id="create-view" hidden>
+  <p class="hint">No dashboard users exist yet — create the first admin account.</p>
+  <label for="create-username">Username</label>
+  <input id="create-username" type="text" />
+  <label for="create-password">Password (min 12 characters)</label>
+  <input id="create-password" type="password" />
+  <button id="create-button" type="button">Create admin</button>
+</div>
+
+<div id="message"></div>
+
+<script>
+  function showMessage(text, ok) {
+    const el = document.getElementById("message");
+    el.textContent = text;
+    el.className = ok ? "success" : "error";
+  }
+
+  async function loadStatus() {
+    const res = await fetch("/status");
+    const body = await res.json();
+    const resetView = document.getElementById("reset-view");
+    const createView = document.getElementById("create-view");
+    if (body.usernames.length > 0) {
+      resetView.hidden = false;
+      createView.hidden = true;
+      const select = document.getElementById("reset-username");
+      select.innerHTML = "";
+      for (const username of body.usernames) {
+        const option = document.createElement("option");
+        option.value = username;
+        option.textContent = username;
+        select.appendChild(option);
+      }
+    } else {
+      resetView.hidden = true;
+      createView.hidden = false;
+    }
+  }
+
+  document.getElementById("reset-button").addEventListener("click", async () => {
+    const username = document.getElementById("reset-username").value;
+    const newPassword = document.getElementById("reset-password").value;
+    const res = await fetch("/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, newPassword }),
+    });
+    const text = await res.text();
+    showMessage(text, res.ok);
+    if (res.ok) document.getElementById("reset-password").value = "";
+  });
+
+  document.getElementById("create-button").addEventListener("click", async () => {
+    const username = document.getElementById("create-username").value;
+    const password = document.getElementById("create-password").value;
+    const res = await fetch("/create-admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const text = await res.text();
+    showMessage(text, res.ok);
+    if (res.ok) await loadStatus();
+  });
+
+  loadStatus();
+</script>
+</body>
+</html>
