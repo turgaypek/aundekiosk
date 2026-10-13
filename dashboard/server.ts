@@ -16,6 +16,8 @@ import { createHostnameApi } from "./hostname_api.ts";
 import { createRemoteAccessApi } from "./remote_access_api.ts";
 import { createServiceControlApi } from "./service_control_api.ts";
 import { createMonitorEventsApi } from "./monitor_events_api.ts";
+import { createUsersApi } from "./auth/users_api.ts";
+import { createAuditLogApi } from "./audit_log_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
@@ -159,6 +161,15 @@ export function createHandler(options: HandlerOptions = {}) {
   });
   const remoteAccessApi = createRemoteAccessApi({ checkServiceStatus });
   const monitorEventsApi = createMonitorEventsApi({ auditLogPath });
+  const usersApi = createUsersApi({
+    credentialStore: createCredentialStore({ storePath: authStorePath }),
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
+  });
+  const auditLogApi = createAuditLogApi({ auditLogPath });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -282,6 +293,36 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return monitorEventsApi.handleGet();
+    }
+
+    if (url.pathname === "/audit-log" && req.method === "GET") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return auditLogApi.handleGet();
+    }
+
+    if (url.pathname === "/users" && req.method === "GET") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return usersApi.handleList();
+    }
+
+    if (url.pathname === "/users" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return usersApi.handleCreate(req, session.username, ip);
+    }
+
+    if (url.pathname === "/users-delete" && req.method === "POST") {
+      const session = authApi.requireSession(req);
+      if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return usersApi.handleDelete(req, session.username, ip);
     }
 
     return serveStatic(url.pathname);

@@ -146,6 +146,154 @@ Deno.test("concurrent createInitialAdmin calls: exactly one succeeds, the other 
   });
 });
 
+// --- multi-user (createUser / listUsers / deleteUser) ---
+
+Deno.test("createUser adds a second account that can log in independently", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    await store.createUser("ayse", "another-long-password", "ayse@aundeteknik.com");
+
+    const first = await store.verifyCredentials("admin", "a-long-enough-password");
+    assertEquals(first.outcome, "success");
+    const second = await store.verifyCredentials("ayse", "another-long-password");
+    assertEquals(second.outcome, "success");
+  });
+});
+
+Deno.test("createUser refuses a username that already exists", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    let threw = false;
+    try {
+      await store.createUser("admin", "another-long-password", null);
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true);
+  });
+});
+
+Deno.test("createUser before any admin exists creates the first account (same effect as createInitialAdmin)", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createUser("admin", "a-long-enough-password", "admin@aundeteknik.com");
+    assertEquals(await store.hasAdmin(), true);
+    const result = await store.verifyCredentials("admin", "a-long-enough-password");
+    assertEquals(result.outcome, "success");
+  });
+});
+
+Deno.test("listUsers returns every account's username and email, never a password hash", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    await store.createUser("ayse", "another-long-password", "ayse@aundeteknik.com");
+
+    const users = await store.listUsers();
+    assertEquals(users.length, 2);
+    assertEquals(JSON.stringify(users.map((u) => u.username).sort()), JSON.stringify(["admin", "ayse"]));
+    const ayse = users.find((u) => u.username === "ayse");
+    assertEquals(ayse?.email, "ayse@aundeteknik.com");
+    assertEquals((ayse as unknown as Record<string, unknown>).passwordHash, undefined);
+  });
+});
+
+Deno.test("deleteUser removes an account, which can then no longer log in", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    await store.createUser("ayse", "another-long-password", null);
+
+    await store.deleteUser("ayse");
+    const users = await store.listUsers();
+    assertEquals(users.length, 1);
+    const result = await store.verifyCredentials("ayse", "another-long-password");
+    assertEquals(result.outcome, "invalid");
+  });
+});
+
+Deno.test("deleteUser refuses to remove the last remaining account", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    let threw = false;
+    try {
+      await store.deleteUser("admin");
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true);
+    assertEquals(await store.hasAdmin(), true);
+  });
+});
+
+Deno.test("each user has an independent lockout counter — locking one account doesn't affect another", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    await store.createUser("ayse", "another-long-password", null);
+
+    const now = 5_000_000;
+    for (let i = 0; i < 5; i++) {
+      await store.verifyCredentials("admin", "wrong-password", now);
+    }
+    const adminResult = await store.verifyCredentials("admin", "a-long-enough-password", now);
+    assertEquals(adminResult.outcome, "locked");
+
+    const ayseResult = await store.verifyCredentials("ayse", "another-long-password", now);
+    assertEquals(ayseResult.outcome, "success");
+  });
+});
+
+// --- migration from the old single-admin file format ---
+
+Deno.test("reads an old single-admin-format file (no 'users' wrapper) and treats it as that one user", async () => {
+  await withTempStore(async (storePath) => {
+    // The exact shape createInitialAdmin wrote before multi-user support:
+    // a bare record, not wrapped in { users: [...] }.
+    const { hashPassword } = await import("./password.ts");
+    const passwordHash = await hashPassword("a-long-enough-password");
+    await Deno.writeTextFile(
+      storePath,
+      JSON.stringify({ username: "admin", passwordHash, failedAttempts: 0, lockedUntil: null }),
+    );
+
+    const store = createCredentialStore({ storePath });
+    assertEquals(await store.hasAdmin(), true);
+    const result = await store.verifyCredentials("admin", "a-long-enough-password");
+    assertEquals(result.outcome, "success");
+    const users = await store.listUsers();
+    assertEquals(users.length, 1);
+    assertEquals(users[0].username, "admin");
+  });
+});
+
+Deno.test("an old-format file upgrades to the multi-user format on disk the first time a user is added", async () => {
+  await withTempStore(async (storePath) => {
+    const { hashPassword } = await import("./password.ts");
+    const passwordHash = await hashPassword("a-long-enough-password");
+    await Deno.writeTextFile(
+      storePath,
+      JSON.stringify({ username: "admin", passwordHash, failedAttempts: 0, lockedUntil: null }),
+    );
+
+    const store = createCredentialStore({ storePath });
+    await store.createUser("ayse", "another-long-password", null);
+
+    const onDisk = JSON.parse(await Deno.readTextFile(storePath));
+    assertEquals(Array.isArray(onDisk.users), true);
+    assertEquals(onDisk.users.length, 2);
+
+    // A second store instance, reading the now-upgraded file fresh, must
+    // still find the original admin account intact.
+    const store2 = createCredentialStore({ storePath });
+    const result = await store2.verifyCredentials("admin", "a-long-enough-password");
+    assertEquals(result.outcome, "success");
+  });
+});
+
 Deno.test("a failed attempt that crosses the lockout threshold reports justLocked:true, and earlier ones report false", async () => {
   await withTempStore(async (storePath) => {
     const store = createCredentialStore({ storePath });

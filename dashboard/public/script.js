@@ -386,6 +386,103 @@ async function saveOsPassword() {
   if (res.ok) document.getElementById("os-password-new").value = "";
 }
 
+// --- Users -------------------------------------------------------------
+function renderUserRow(user) {
+  const template = document.getElementById("template-user");
+  const row = template.content.firstElementChild.cloneNode(true);
+  window.aundekiosk?.translateSubtree?.(row);
+  row.querySelector(".user-username").textContent = user.username;
+  row.querySelector(".user-email").textContent = user.email || "";
+  row.querySelector(".user-delete").addEventListener("click", () => deleteUser(user.username));
+  return row;
+}
+
+async function loadUsers() {
+  const list = document.getElementById("users-list");
+  if (!list) return;
+  const res = await fetch("/users");
+  if (!res.ok) return;
+  const users = await res.json();
+  list.innerHTML = "";
+  for (const user of users) {
+    list.appendChild(renderUserRow(user));
+  }
+}
+
+async function addUser() {
+  const username = document.getElementById("new-user-username").value.trim();
+  const email = document.getElementById("new-user-email").value.trim();
+  const password = document.getElementById("new-user-password").value;
+  if (!username || !password) return;
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, email: email || null, password, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) {
+    document.getElementById("new-user-username").value = "";
+    document.getElementById("new-user-email").value = "";
+    document.getElementById("new-user-password").value = "";
+    await loadUsers();
+  }
+}
+
+async function deleteUser(username) {
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/users-delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) await loadUsers();
+}
+
+// --- Audit Log -----------------------------------------------------------
+// General "who did what" viewer — unlike formatMonitorEvent (which only
+// handles the resource monitor's own event types), this formats every
+// event type the audit log records, falling back to a raw sentence for
+// anything it doesn't recognize by name.
+function formatAuditEvent(event) {
+  const lang = document.getElementById("lang-switch")?.value || "tr";
+  const locale = MONITOR_EVENT_LOCALE_BY_LANG[lang] || lang;
+  const time = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "medium" }).format(new Date(event.timestamp));
+  const params = { ...event };
+  if (typeof event.ok === "boolean") {
+    params.status = window.aundekiosk?.t?.(event.ok ? "audit_status_ok" : "audit_status_failed");
+  }
+  if (typeof event.action === "string") {
+    params.action = window.aundekiosk?.t?.(`audit_action_${event.action}`) ?? event.action;
+  }
+  const translated = window.aundekiosk?.t?.(`audit_event_${event.event}`, params);
+  if (translated && !translated.startsWith("audit_event_")) {
+    return `${time} — ${translated}`;
+  }
+  return `${time} — ${event.event}`;
+}
+
+async function loadAuditLog() {
+  const list = document.getElementById("audit-log-list");
+  if (!list) return;
+  const res = await fetch("/audit-log");
+  if (!res.ok) return;
+  const events = await res.json();
+  list.innerHTML = "";
+  document.getElementById("audit-log-empty").hidden = events.length > 0;
+  for (const event of events) {
+    const li = document.createElement("li");
+    li.className = "list-group-item";
+    li.textContent = formatAuditEvent(event);
+    list.appendChild(li);
+  }
+}
+
 if (typeof document !== "undefined") {
   document.getElementById("add-url")?.addEventListener("click", () => {
     const input = document.getElementById("new-url");
@@ -413,10 +510,14 @@ if (typeof document !== "undefined") {
   document.getElementById("os-password-save")?.addEventListener("click", saveOsPassword);
   updateNetworkFieldVisibility();
 
+  document.getElementById("add-user-button")?.addEventListener("click", addUser);
+
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.loadConfig = loadConfig;
   window.aundekiosk.loadServiceStatus = loadServiceStatus;
   window.aundekiosk.loadMonitorConfig = loadMonitorConfig;
   window.aundekiosk.loadMonitorEvents = loadMonitorEvents;
   window.aundekiosk.loadRemoteAccessStatus = loadRemoteAccessStatus;
+  window.aundekiosk.loadUsers = loadUsers;
+  window.aundekiosk.loadAuditLog = loadAuditLog;
 }
