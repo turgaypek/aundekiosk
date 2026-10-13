@@ -198,6 +198,19 @@ assert_status 0 $? "install.sh sizes the tmpfs cache against this board's detect
 grep -qE "tmpfs[[:space:]]+\\\$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]+tmpfs[[:space:]]+size=" "$INSTALL_SH"
 assert_status 0 $? "install.sh writes an fstab tmpfs entry for the Chromium cache directory"
 
+# Found live, the morning after this feature shipped: install.sh's own
+# "chown PI_USER" only applies at install time. On every *subsequent*
+# boot, systemd mounts the tmpfs straight from fstab — with no uid=/gid=
+# in that line, a bare "mode=0700" tmpfs comes up owned by root:root, not
+# the pi user chromium actually runs as. Chromium couldn't create its
+# own SingletonLock file in a directory it doesn't own, crash-looped
+# (systemd restart counter past 18) all night, and the kiosk display was
+# just stuck on the desktop by the time anyone looked at it in the
+# morning. The fstab line itself has to carry the ownership so every
+# boot gets it right, not just the one install.sh happens to run during.
+grep -qE "tmpfs[[:space:]]+\\\$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]+tmpfs[[:space:]]+size=\\\$\\{TMPFS_MB\\}m,mode=0700,uid=\\\$PI_SUID,gid=\\\$PI_SUID" "$INSTALL_SH"
+assert_status 0 $? "install.sh's fstab tmpfs entry sets uid=/gid= so a post-reboot automount is owned by the pi user, not root"
+
 grep -q "mountpoint -q" "$INSTALL_SH"
 assert_status 0 $? "install.sh only mounts the tmpfs cache if it isn't already mounted (idempotent re-runs)"
 

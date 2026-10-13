@@ -41,6 +41,8 @@ if [ -z "$PI_USER" ]; then
     exit 1
 fi
 msg "$SUCCESS" "Target user identified as '$PI_USER'."
+PI_HOME=$(getent passwd "$PI_USER" | cut -d: -f6)
+PI_SUID=$(id -u "$PI_USER")
 
 msg "$INFO" "Creating the root-owned privileged-state directory..."
 install -d -m 0700 -o root -g root "$AUNDEKIOSK_PRIV_DIR"
@@ -129,10 +131,19 @@ source "$AUNDEKIOSK_INSTALL_DIR/platform/lib.sh"
 AUNDEKIOSK_CHROMIUM_CACHE_DIR="/var/cache/aundekiosk-chromium"
 TMPFS_MB=$(compute_tmpfs_cache_mb "$(detect_ram_mb)")
 install -d -m 0700 -o "$PI_USER" -g "$PI_USER" "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
-if ! grep -qE "^tmpfs[[:space:]]+$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]" /etc/fstab; then
-    echo "tmpfs $AUNDEKIOSK_CHROMIUM_CACHE_DIR tmpfs size=${TMPFS_MB}m,mode=0700 0 0" >> /etc/fstab
+# Self-heals a line an earlier version of this script could have left
+# behind without uid=/gid= — without them, a tmpfs mounted straight from
+# fstab (as every reboot's automount does) comes up owned by root, not
+# PI_USER, and chromium can't create its own profile lock file there
+# (found live: crash-looped all night, kiosk stuck on the desktop by
+# morning). Always rewriting the line, not just adding it when absent,
+# means a previously-broken line gets corrected on the next update, too.
+sed -i "\\|^tmpfs[[:space:]]\\+$AUNDEKIOSK_CHROMIUM_CACHE_DIR[[:space:]]|d" /etc/fstab
+echo "tmpfs $AUNDEKIOSK_CHROMIUM_CACHE_DIR tmpfs size=${TMPFS_MB}m,mode=0700,uid=$PI_SUID,gid=$PI_SUID 0 0" >> /etc/fstab
+if mountpoint -q "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"; then
+    umount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
 fi
-mountpoint -q "$AUNDEKIOSK_CHROMIUM_CACHE_DIR" || mount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
+mount "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
 chown "$PI_USER:$PI_USER" "$AUNDEKIOSK_CHROMIUM_CACHE_DIR"
 
 # A kiosk left running for months must not let its own logs quietly fill
@@ -156,8 +167,6 @@ $AUNDEKIOSK_INSTALL_DIR/audit.log {
 EOF
 
 msg "$INFO" "Installing systemd services..."
-PI_HOME=$(getent passwd "$PI_USER" | cut -d: -f6)
-PI_SUID=$(id -u "$PI_USER")
 
 sed -e "s|PI_HOME|$PI_HOME|g" -e "s|PI_SUID|$PI_SUID|g" -e "s|PI_USER|$PI_USER|g" \
     "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-runner.service.template" > /etc/systemd/system/aundekiosk-runner.service
