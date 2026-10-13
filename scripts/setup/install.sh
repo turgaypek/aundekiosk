@@ -98,10 +98,12 @@ DENO_DIR="$AUNDEKIOSK_INSTALL_DIR/.deno" /usr/local/bin/deno cache \
     --lock="$AUNDEKIOSK_INSTALL_DIR/dashboard/deno.lock" \
     "$AUNDEKIOSK_INSTALL_DIR/dashboard/server.ts"
 
-msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it can write config.json; root reclaims 'privileged' so a dashboard-level bug can never rewrite a script sudo will run as root)..."
+msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it can write config.json; root reclaims 'privileged' and 'recovery' so a dashboard-level bug can never rewrite a script sudo/root will run)..."
 chown -R aundekiosk:aundekiosk "$AUNDEKIOSK_INSTALL_DIR"
 chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/privileged"
 chmod -R go-w "$AUNDEKIOSK_INSTALL_DIR/privileged"
+chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/recovery"
+chmod -R go-w "$AUNDEKIOSK_INSTALL_DIR/recovery"
 # The repo lives directly at $AUNDEKIOSK_INSTALL_DIR and update.sh's
 # `git pull` runs as root (via sudo), right before it re-execs this
 # script. Keeping .git root-owned avoids git's dubious-ownership
@@ -118,6 +120,9 @@ if ! visudo -c -f "$SUDOERS_SRC"; then
     exit 1
 fi
 install -m 0440 "$SUDOERS_SRC" "$SUDOERS_DST"
+
+msg "$INFO" "Installing the aundekiosk-recover command (standalone password-recovery tool; never installed as a service)..."
+install -m 0755 "$AUNDEKIOSK_INSTALL_DIR/scripts/setup/aundekiosk-recover-wrapper.sh" /usr/local/bin/aundekiosk-recover
 
 # Found live: Chromium's default profile (~/.config/chromium) had grown
 # to 1.7GB on the SD card, rewritten constantly as switcher.sh cycles

@@ -239,4 +239,26 @@ assert_status 0 $? "install.sh caps systemd-journald's on-disk log size"
 grep -q "/etc/logrotate.d/aundekiosk" "$INSTALL_SH"
 assert_status 0 $? "install.sh installs a logrotate policy for audit.log"
 
+# The recovery tool (sub-project D) is a standalone command, never a
+# systemd service — this only installs the wrapper binary, nothing
+# that starts automatically.
+grep -qE 'install -m 0755 "\$AUNDEKIOSK_INSTALL_DIR/scripts/setup/aundekiosk-recover-wrapper\.sh" /usr/local/bin/aundekiosk-recover' "$INSTALL_SH"
+assert_status 0 $? "install.sh installs the aundekiosk-recover wrapper to /usr/local/bin"
+
+# Same reasoning as the existing "privileged/" ownership hardening
+# (Critical C2, see the chown -R root:root privileged check above): the
+# unprivileged aundekiosk dashboard user must never be able to modify
+# code that will later run as root via "sudo aundekiosk-recover".
+grep -qE 'chown -R root:root "\$AUNDEKIOSK_INSTALL_DIR/recovery"' "$INSTALL_SH"
+assert_status 0 $? "install.sh makes the recovery/ directory root-owned, not dashboard-owned"
+
+grep -qE 'chmod -R go-w "\$AUNDEKIOSK_INSTALL_DIR/recovery"' "$INSTALL_SH"
+assert_status 0 $? "install.sh removes group/other write access from the recovery/ directory"
+
+# install.sh must never enable or start a recovery-tool service — it
+# has none; this pins the negative as a safety net against someone
+# later adding one by mistake.
+! grep -qi "aundekiosk-recover.*\.service\|aundekiosk-recovery\.service" "$INSTALL_SH"
+assert_status 0 $? "install.sh never installs/enables a systemd service for the recovery tool"
+
 assert_summary
