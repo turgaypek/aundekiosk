@@ -124,6 +124,9 @@ install -m 0440 "$SUDOERS_SRC" "$SUDOERS_DST"
 msg "$INFO" "Installing the aundekiosk-recover command (standalone password-recovery tool; never installed as a service)..."
 install -m 0755 "$AUNDEKIOSK_INSTALL_DIR/scripts/setup/aundekiosk-recover-wrapper.sh" /usr/local/bin/aundekiosk-recover
 
+msg "$INFO" "Installing the aundekiosk-update command (shorthand for update.sh)..."
+install -m 0755 "$AUNDEKIOSK_INSTALL_DIR/scripts/setup/aundekiosk-update-wrapper.sh" /usr/local/bin/aundekiosk-update
+
 # Found live: Chromium's default profile (~/.config/chromium) had grown
 # to 1.7GB on the SD card, rewritten constantly as switcher.sh cycles
 # pages every few seconds — exactly the write pattern that wears out or

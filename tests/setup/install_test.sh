@@ -261,4 +261,7 @@ assert_status 0 $? "install.sh removes group/other write access from the recover
 ! grep -qi "aundekiosk-recover.*\.service\|aundekiosk-recovery\.service" "$INSTALL_SH"
 assert_status 0 $? "install.sh never installs/enables a systemd service for the recovery tool"
 
+grep -qE 'install -m 0755 "\$AUNDEKIOSK_INSTALL_DIR/scripts/setup/aundekiosk-update-wrapper\.sh" /usr/local/bin/aundekiosk-update' "$INSTALL_SH"
+assert_status 0 $? "install.sh installs the aundekiosk-update wrapper to /usr/local/bin"
+
 assert_summary
