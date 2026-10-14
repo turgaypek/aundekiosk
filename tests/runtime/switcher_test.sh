@@ -7,6 +7,19 @@ source "$SCRIPT_DIR/../assert.sh"
 SWITCHER="$SCRIPT_DIR/../../runtime/switcher.sh"
 WORKDIR=$(mktemp -d)
 
+# Write-then-rename (mirrors config_api.ts's own atomic write) for every
+# rewrite made WHILE the switcher is already running and reading the same
+# file: a plain "cat > file" truncates before it writes, and a jq read
+# that lands in that window gets invalid/partial JSON, which — under
+# switcher.sh's own "set -e" — silently kills the switcher rather than
+# just erroring one read. Found exactly this way: these tests flaked only
+# under the full suite's CPU contention, never standalone.
+write_config_atomically() {
+  local target="$1"
+  cat > "$target.tmp" <<< "$2"
+  mv "$target.tmp" "$target"
+}
+
 # --- case 1: no URLs -> exits immediately, never loops ---
 cat > "$WORKDIR/config_empty.json" <<'EOF'
 { "urls": [] }
@@ -120,16 +133,114 @@ while [[ ! -s "$XDOTOOL_LOG" ]] && (( waited < 100 )); do
   waited=$(( waited + 1 ))
 done
 
-cat > "$WORKDIR/config_live.json" <<'EOF'
-{ "urls": [ { "url": "https://example.test/live", "duration": 60, "cycles": 0 } ] }
-EOF
+write_config_atomically "$WORKDIR/config_live.json" \
+  '{ "urls": [ { "url": "https://example.test/live", "duration": 60, "cycles": 0 } ] }'
+
+# An iteration that was already mid-read when this rewrite landed can
+# still see the stale 1s duration once more — an inherent race between an
+# external edit and an already-running read loop (the same race a real
+# admin's save has against a live switcher in production; it isn't new,
+# and a single straggler iteration is an acceptable outcome of it). 2.5s
+# gives that one straggler (and its own ctrl+Tab) room to finish. A
+# further 3s with the count unchanged is what actually proves the new
+# 60s duration took hold — if the bug were back and the switcher were
+# still stuck re-reading 1s, several more ctrl+Tabs would land in that
+# window instead.
+sleep 2.5
+count_after_grace=$(grep -c "xdotool key ctrl+Tab" "$XDOTOOL_LOG")
 sleep 3
+count_final=$(grep -c "xdotool key ctrl+Tab" "$XDOTOOL_LOG")
 
 kill "$SWITCHER_PID" 2>/dev/null || true
 wait "$SWITCHER_PID" 2>/dev/null || true
 
-ctrl_tab_count=$(grep -c "xdotool key ctrl+Tab" "$XDOTOOL_LOG")
-assert_eq "1" "$ctrl_tab_count" "switcher.sh re-reads duration from the config file every iteration, so an edit (1s -> 60s) takes effect without a service restart"
+if [[ "$count_after_grace" -le 2 ]]; then
+  assert_eq "yes" "yes" "switcher.sh picks up an edited duration within at most one in-flight (stale-read) iteration"
+else
+  assert_eq "yes" "no (saw $count_after_grace ctrl+Tabs within the grace window)" "switcher.sh picks up an edited duration within at most one in-flight (stale-read) iteration"
+fi
+
+assert_eq "$count_after_grace" "$count_final" "switcher.sh re-reads duration from the config file every iteration, so an edit (1s -> 60s) takes effect without a service restart"
+
+# --- case 5: a URL ADDED via the dashboard (not just an existing one's
+# fields edited) is picked up without restarting the switcher. Found live
+# on the real device: config.json went from 1 URL to 2, aundekiosk-runner
+# was restarted (so Chromium correctly opened a second tab), but
+# aundekiosk-switcher was not — its startup log still said "Managing 1
+# tabs" from hours earlier, so it kept sending ctrl+Tab on the first
+# URL's own 1s duration forever and never visited the second tab at all.
+# Index 1 (the new URL) has cycles=1 so the very first time the switcher
+# actually lands on it, should_refresh fires immediately and types its
+# URL — an unambiguous, otherwise-impossible signal that URL_COUNT was
+# re-read live, not just cached from startup. ---
+cat > "$WORKDIR/config_grow.json" <<'EOF'
+{ "urls": [ { "url": "https://example.test/first", "duration": 1, "cycles": 0 } ] }
+EOF
+
+: > "$XDOTOOL_LOG"
+export AUNDEKIOSK_CONFIG_FILE="$WORKDIR/config_grow.json"
+
+PATH="$FAKE_BIN:$PATH" timeout 40 bash "$SWITCHER" > "$WORKDIR/output_grow.txt" 2>&1 &
+SWITCHER_PID=$!
+
+waited=0
+while [[ ! -s "$XDOTOOL_LOG" ]] && (( waited < 200 )); do
+  sleep 0.1
+  waited=$(( waited + 1 ))
+done
+
+write_config_atomically "$WORKDIR/config_grow.json" '{
+  "urls": [
+    { "url": "https://example.test/first", "duration": 1, "cycles": 0 },
+    { "url": "https://example.test/second", "duration": 1, "cycles": 1 }
+  ]
+}'
+
+# Several jq spawns per switcher iteration (url_count/url/duration/cycles,
+# each its own process) make this slower under full-suite CPU contention
+# than alone — this previously flaked at a 10s bound (see the switcher
+# flakiness fix noted elsewhere in this file's history), so it polls
+# generously instead of assuming a fixed worst case is enough.
+waited=0
+while ! grep -qF "https://example.test/second" "$XDOTOOL_LOG" 2>/dev/null && (( waited < 300 )); do
+  sleep 0.1
+  waited=$(( waited + 1 ))
+done
+
+kill "$SWITCHER_PID" 2>/dev/null || true
+wait "$SWITCHER_PID" 2>/dev/null || true
+
+grep -qF "https://example.test/second" "$XDOTOOL_LOG"
+assert_status 0 $? "switcher.sh re-reads the URL COUNT from the config file every iteration, so a URL added via the dashboard is visited without restarting the switcher"
+
+# --- case 6: every URL removed via the dashboard while the switcher is
+# already running (config.json goes from N URLs to zero) makes it exit
+# cleanly, the same way it does when it never had any URLs to begin with
+# — not crash on a division-by-zero computing the next tab index. ---
+cat > "$WORKDIR/config_shrink.json" <<'EOF'
+{ "urls": [ { "url": "https://example.test/only", "duration": 1, "cycles": 0 } ] }
+EOF
+
+: > "$XDOTOOL_LOG"
+export AUNDEKIOSK_CONFIG_FILE="$WORKDIR/config_shrink.json"
+
+PATH="$FAKE_BIN:$PATH" timeout 20 bash "$SWITCHER" > "$WORKDIR/output_shrink.txt" 2>&1 &
+SWITCHER_PID=$!
+
+waited=0
+while [[ ! -s "$XDOTOOL_LOG" ]] && (( waited < 100 )); do
+  sleep 0.1
+  waited=$(( waited + 1 ))
+done
+
+write_config_atomically "$WORKDIR/config_shrink.json" '{ "urls": [] }'
+
+wait "$SWITCHER_PID" 2>/dev/null
+shrink_status=$?
+assert_status 0 "$shrink_status" "switcher.sh exits cleanly (not a crash) when every URL is removed while it's already running"
+
+grep -q "No URLs configured" "$WORKDIR/output_shrink.txt"
+assert_status 0 $? "switcher.sh logs the same clear message whether it starts with no URLs or loses them all while running"
 
 rm -rf "$WORKDIR"
 assert_summary

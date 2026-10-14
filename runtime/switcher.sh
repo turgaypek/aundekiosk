@@ -67,15 +67,36 @@ sleep "$STARTUP_DELAY"
 echo "AundeKiosk switcher started. Managing $URL_COUNT tabs."
 
 while true; do
-  # Read straight from the file on every iteration, never from an array
-  # loaded once at startup — a duration/cycle/URL edited and applied via
-  # the dashboard must take effect on the next tab switch, not only
-  # after the switcher service is restarted (found live: an admin's
-  # 10s -> 30s duration edit was silently ignored by an already-running
-  # switcher for the rest of its uptime).
-  url=$(url_at_index "$CONFIG_FILE" "$CURRENT_TAB_INDEX")
-  duration=$(duration_at_index "$CONFIG_FILE" "$CURRENT_TAB_INDEX")
-  cycle_target=$(cycles_at_index "$CONFIG_FILE" "$CURRENT_TAB_INDEX")
+  # One read of the file for everything this iteration needs — count,
+  # url, duration, and cycles together — never four separate reads.
+  # Separate reads left a window where a config rewrite landing between
+  # them could make an in-range count's read race a since-shrunk array's
+  # per-field read, surfacing jq's "null" for every field, which this
+  # script's own "set -u" then aborted on as an unbound variable.
+  #
+  # Re-reading the count itself (not just url/duration/cycles) every
+  # iteration also means a URL ADDED OR REMOVED via the dashboard takes
+  # effect on the next tab switch, not only after the switcher service is
+  # restarted. Found live: config.json went from 1 URL to 2 and
+  # aundekiosk-runner was restarted (Chromium correctly opened a second
+  # tab), but aundekiosk-switcher was not — it kept cycling as if there
+  # were still only the one tab it had loaded at its own startup, hours
+  # earlier, and never visited the new one at all.
+  IFS=$'\x1f' read -r URL_COUNT url duration cycle_target < <(tab_snapshot "$CONFIG_FILE" "$CURRENT_TAB_INDEX")
+
+  if [[ "$URL_COUNT" -le 0 ]]; then
+    echo "No URLs configured. Exiting switcher."
+    exit 0
+  fi
+
+  if (( CURRENT_TAB_INDEX >= URL_COUNT )); then
+    # The snapshot above was taken at an index that no longer exists (a
+    # shrink landed since the last iteration) — its url/duration/cycles
+    # are placeholders, not real data. Correct the index and read the
+    # real first tab on the very next iteration instead of acting on them.
+    CURRENT_TAB_INDEX=0
+    continue
+  fi
 
   REFRESH_COUNTS[$CURRENT_TAB_INDEX]=$(( REFRESH_COUNTS[CURRENT_TAB_INDEX] + 1 ))
 

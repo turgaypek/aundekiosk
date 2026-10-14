@@ -137,6 +137,26 @@ EOF
 result=$(duration_at_index "$FIXTURES/config_live_edit.json" 0)
 assert_eq "30" "$result" "duration_at_index reflects an edit made after the first call, without any restart"
 
+# --- tab_snapshot ---
+# One jq call returning count+url+duration+cycles together, so a single
+# loop iteration never sees a mix of two different versions of the file
+# (switcher.sh previously made 4 separate reads per iteration — a config
+# rewrite landing between them could make an in-range count's read race a
+# since-shrunk array's per-field read, surfacing jq's "null" for every
+# field, which switcher.sh's own "set -u" then aborted on as an unbound
+# variable).
+IFS=$'\x1f' read -r count url duration cycles < <(tab_snapshot "$FIXTURES/config_two_urls.json" 1)
+assert_eq "2" "$count" "tab_snapshot's count matches url_count_in_config"
+assert_eq "https://example.org" "$url" "tab_snapshot's url matches url_at_index for the same index"
+assert_eq "20" "$duration" "tab_snapshot's duration matches duration_at_index for the same index"
+assert_eq "0" "$cycles" "tab_snapshot's cycles matches cycles_at_index for the same index"
+
+IFS=$'\x1f' read -r count url duration cycles < <(tab_snapshot "$FIXTURES/config_two_urls.json" 5)
+assert_eq "2" "$count" "tab_snapshot still reports the real count when asked for an out-of-range index"
+assert_eq "" "$url" "tab_snapshot returns an empty (never 'null') placeholder url for an out-of-range index"
+assert_eq "0" "$duration" "tab_snapshot returns a 0 (never 'null') placeholder duration for an out-of-range index"
+assert_eq "0" "$cycles" "tab_snapshot returns a 0 (never 'null') placeholder cycles for an out-of-range index"
+
 # --- should_refresh ---
 if should_refresh 5 10; then
   assert_eq "false" "true" "should_refresh is false before reaching the target"

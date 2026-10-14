@@ -120,6 +120,39 @@ cycles_at_index() {
   jq -r ".urls[$index].cycles" "$config_file" | tr -d '\r'
 }
 
+# One jq call, one read of the file, returning count+url+duration+cycles
+# together — switcher.sh's main loop uses this instead of calling
+# url_count_in_config/url_at_index/duration_at_index/cycles_at_index
+# separately. Four separate reads left a window where a config rewrite
+# landing between them could make an in-range count's read race a
+# since-shrunk array's per-field read, surfacing jq's "null" for every
+# field (which a "set -u" caller then aborts on as an unbound variable)
+# instead of a clean, immediately-correctable "out of range". An
+# out-of-range index gets placeholder url/duration/cycles ("", 0, 0)
+# rather than jq's "null" — count is still the real one, so a caller can
+# tell the two cases apart and clamp its own index instead of acting on
+# placeholder data.
+#
+# Fields are joined with \x1f (unit separator), not a tab: bash's `read`
+# treats tab as "IFS whitespace" even when IFS is set to just tab alone,
+# so it silently collapses consecutive tabs and shifts every field after
+# an empty one — exactly the case a url="" placeholder hits. \x1f is not
+# whitespace to bash, so empty fields come through as genuinely empty.
+tab_snapshot() {
+  local config_file="$1"
+  local index="$2"
+  jq -j --argjson idx "$index" '
+    (.urls | length) as $n
+    | if $idx < $n then
+        [$n, .urls[$idx].url, (.urls[$idx].duration | tostring), (.urls[$idx].cycles | tostring)]
+      else
+        [$n, "", "0", "0"]
+      end
+    | join("\u001f")
+  ' "$config_file" | tr -d '\r'
+  echo
+}
+
 should_refresh() {
   local count="$1"
   local target="$2"
