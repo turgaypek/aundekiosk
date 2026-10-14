@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Public one-line entry point for a brand-new Pi, mirroring xiosk's own
 # curl | bash UX:
-#   curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/main/scripts/setup/bootstrap.sh | sudo bash -s -- --install
-#   curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/main/scripts/setup/bootstrap.sh | sudo bash -s -- --update
+#   curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/master/scripts/setup/bootstrap.sh | sudo bash -s -- --install
+#   curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/master/scripts/setup/bootstrap.sh | sudo bash -s -- --update
 # Only two modes exist — AundeKiosk has no backup/cleanup equivalent of
 # xiosk's --backup/--cleanup (yet). All the real work still happens in
 # install.sh/update.sh; this only clones the repo once and hands off.
