@@ -24,6 +24,7 @@ for t in \
   "$SCRIPT_DIR/privileged/apt_upgrade_test.sh" \
   "$SCRIPT_DIR/setup/aundekiosk_recover_wrapper_test.sh" \
   "$SCRIPT_DIR/setup/aundekiosk_update_wrapper_test.sh" \
+  "$SCRIPT_DIR/setup/bootstrap_test.sh" \
   "$SCRIPT_DIR/services/templates_test.sh" \
   "$SCRIPT_DIR/setup/install_test.sh" \
   "$SCRIPT_DIR/setup/generate_tls_cert_test.sh" \
