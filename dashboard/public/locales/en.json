@@ -147,5 +147,11 @@
   "reboot_schedule_disabled_hint": "Scheduled reboot is off",
   "config_backup_age_hint": "Last backup: {age} ago",
   "remote_access_open_desktop": "Open Desktop",
-  "remote_access_open_terminal": "Open Terminal"
+  "remote_access_open_terminal": "Open Terminal",
+  "app_update_heading": "Application Update",
+  "app_update_hint": "Pulls the latest version from GitHub and restarts services. The dashboard will be briefly unavailable.",
+  "app_update_button": "Update AundeKiosk",
+  "app_update_state_idle": "Up to date",
+  "app_update_state_updating": "Updating…",
+  "app_update_reconnecting": "Dashboard restarting, please wait…"
 }

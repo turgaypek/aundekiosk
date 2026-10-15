@@ -25,21 +25,26 @@ if ! has_urls "$CONFIG_FILE"; then
   exit 0
 fi
 
-mapfile -t URLS < <(extract_urls_from_config "$CONFIG_FILE")
+# Open a single tab with the first URL; switcher.sh navigates to each URL
+# in sequence using the address bar (Ctrl+L + type). One tab instead of N
+# keeps RAM usage minimal on all Pi models and removes the tab-order
+# assumptions that caused cycling to break on lower-RAM boards.
+FIRST_URL=$(url_at_index "$CONFIG_FILE" 0)
 
-# Every URL is passed as its own array element (never interpolated into a
-# plain string) so none of them is word-split or glob-expanded, and "--"
-# marks the end of chromium's own switches so a URL value can never be
-# parsed as a flag even if one somehow began with "--".
 # Hide the mouse cursor after 3 seconds of inactivity.
 if command -v unclutter-xfixes > /dev/null 2>&1; then
   unclutter-xfixes --timeout 3 &
 fi
 
+# "--" marks the end of Chromium's own switches so the URL can never be
+# parsed as a flag even if it somehow begins with "--".
 exec chromium \
+  --disable-background-networking \
   --disable-component-update \
   --disable-composited-antialiasing \
+  --disable-default-apps \
   --disable-dev-shm-usage \
+  --disable-extensions \
   --disable-infobars \
   --disable-low-res-tiling \
   --disable-pinch \
@@ -51,6 +56,7 @@ exec chromium \
   --kiosk \
   --no-first-run \
   --noerrdialogs \
+  --renderer-process-limit=1 \
   --user-data-dir="$CHROMIUM_CACHE_DIR" \
   -- \
-  "${URLS[@]}"
+  "$FIRST_URL"

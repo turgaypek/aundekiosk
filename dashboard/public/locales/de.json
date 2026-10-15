@@ -147,5 +147,11 @@
   "reboot_schedule_disabled_hint": "Geplanter Neustart ist deaktiviert",
   "config_backup_age_hint": "Letzte Sicherung: vor {age}",
   "remote_access_open_desktop": "Desktop öffnen",
-  "remote_access_open_terminal": "Terminal öffnen"
+  "remote_access_open_terminal": "Terminal öffnen",
+  "app_update_heading": "Anwendungsupdate",
+  "app_update_hint": "Lädt die neueste Version von GitHub und startet die Dienste neu. Das Dashboard ist kurzzeitig nicht verfügbar.",
+  "app_update_button": "AundeKiosk aktualisieren",
+  "app_update_state_idle": "Aktuell",
+  "app_update_state_updating": "Aktualisierung…",
+  "app_update_reconnecting": "Dashboard wird neu gestartet, bitte warten…"
 }

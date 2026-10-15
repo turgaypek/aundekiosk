@@ -275,6 +275,25 @@
           </div>
         </div>
 
+        <div id="app-update" class="card mb-4" data-admin-only>
+          <div class="card-header">
+            <h2 class="h5 my-0" data-i18n="app_update_heading">Application Update</h2>
+          </div>
+          <div class="card-body">
+            <p class="text-body-secondary small" data-i18n="app_update_hint">
+              Pulls the latest version from GitHub and restarts services. The dashboard will be briefly unavailable.
+            </p>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <button id="app-update-start" type="button" class="btn btn-danger" data-i18n="app_update_button">
+                Update AundeKiosk
+              </button>
+              <span id="app-update-state" class="badge bg-secondary" data-i18n="app_update_state_idle">Up to date</span>
+            </div>
+            <p id="app-update-reconnect-msg" class="text-body-secondary small mb-0" hidden
+               data-i18n="app_update_reconnecting">Dashboard restarting, please wait…</p>
+          </div>
+        </div>
+
         <div id="users" class="card mb-4" data-admin-only>
           <div class="card-header">
             <h2 class="h5 my-0" data-i18n="users_heading">Users</h2>

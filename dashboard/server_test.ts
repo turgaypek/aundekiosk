@@ -592,6 +592,64 @@ Deno.test("viewer session can access GET /config (viewer-allowed route)", async 
   }
 });
 
+Deno.test("POST /api/update without a session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(new Request("http://localhost/api/update", { method: "POST" }));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("POST /api/update with a viewer session returns 403", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const viewerCookie = await loginAs(handle, `${dir}/auth.db`, "viewer1", "viewer-long-pass-12", "viewer");
+    const res = await handle(
+      new Request("http://localhost/api/update", { method: "POST", headers: { cookie: viewerCookie } }),
+    );
+    assertEquals(res.status, 403);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("POST /api/update with an admin session returns 202 Accepted", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const adminCookie = await loginAs(handle, `${dir}/auth.db`, "admin1", "a-long-enough-pass", "admin");
+    const res = await handle(
+      new Request("http://localhost/api/update", { method: "POST", headers: { cookie: adminCookie } }),
+    );
+    // sudo/systemd-run will fail in the test environment, but the 202 is
+    // returned immediately (fire-and-forget) before the privileged command.
+    assertEquals(res.status, 202);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 Deno.test("GET /api/me without a session returns 401", async () => {
   const dir = await Deno.makeTempDir();
   try {

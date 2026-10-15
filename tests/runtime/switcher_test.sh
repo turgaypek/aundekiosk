@@ -45,16 +45,15 @@ assert_status 0 $? "switcher.sh still exits cleanly with no display server detec
 grep -q "WARNING: could not detect a display server" "$WORKDIR/output_unknown.txt"
 assert_status 0 $? "switcher.sh warns clearly when display server cannot be detected"
 
-# --- case 3: refreshing re-types the tab's own URL via the address bar,
-# instead of sending a plain reload. Reported live on the real device: a
-# signage page (an ASP.NET WebForms dashboard using __doPostBack) ends up
-# with a POST as its current history entry, so a plain Ctrl+R reload pops
+# --- case 3: every switch re-types the URL into the address bar (Ctrl+L),
+# never using a plain reload. Reported live on the real device: a signage
+# page (an ASP.NET WebForms dashboard using __doPostBack) ends up with a
+# POST as its current history entry, so a plain Ctrl+R reload pops
 # Chromium's "Confirm Form Resubmission" dialog and blocks the kiosk
-# display until someone clicks through it by hand. Re-typing the URL is
-# always a fresh GET, so this can never happen again for this page or any
-# future one added the same way. ---
-cat > "$WORKDIR/config_refresh.json" <<'EOF'
-{ "urls": [ { "url": "https://example.test/page", "duration": 1, "cycles": 1 } ] }
+# display until someone clicks through it by hand. Re-typing is always a
+# fresh GET, so this can never happen for any URL added to the kiosk. ---
+cat > "$WORKDIR/config_nav.json" <<'EOF'
+{ "urls": [ { "url": "https://example.test/page", "duration": 1, "cycles": 0 } ] }
 EOF
 
 FAKE_BIN="$WORKDIR/bin"
@@ -65,23 +64,22 @@ echo "xdotool $*" >> "$XDOTOOL_LOG"
 EOF
 chmod +x "$FAKE_BIN/xdotool"
 
-export AUNDEKIOSK_CONFIG_FILE="$WORKDIR/config_refresh.json"
+export AUNDEKIOSK_CONFIG_FILE="$WORKDIR/config_nav.json"
 export AUNDEKIOSK_STARTUP_DELAY=0
 export XDOTOOL_LOG="$WORKDIR/xdotool.log"
 : > "$XDOTOOL_LOG"
 unset WAYLAND_DISPLAY || true
 export DISPLAY=":0"
 
-PATH="$FAKE_BIN:$PATH" timeout 20 bash "$SWITCHER" > "$WORKDIR/output_refresh.txt" 2>&1 &
+PATH="$FAKE_BIN:$PATH" timeout 20 bash "$SWITCHER" > "$WORKDIR/output_nav.txt" 2>&1 &
 SWITCHER_PID=$!
 
 # Poll for the whole 3-step navigate_to_url sequence (ctrl+l, type,
 # Return — each its own xdotool subprocess) to finish, not just its
 # first step: killing right after the first write races the remaining
 # two, which previously made this test flake. How long process/
-# subprocess spawn takes (several jq calls per loop iteration, now that
-# duration/cycles/url are read live every time) varies a lot by
-# machine, so this polls instead of assuming a fixed timeout is enough.
+# subprocess spawn takes varies a lot by machine, so this polls instead
+# of assuming a fixed timeout is enough.
 waited=0
 while ! grep -q "xdotool key Return" "$XDOTOOL_LOG" 2>/dev/null && (( waited < 150 )); do
   sleep 0.1
@@ -92,31 +90,31 @@ kill "$SWITCHER_PID" 2>/dev/null || true
 wait "$SWITCHER_PID" 2>/dev/null || true
 
 grep -q "xdotool key ctrl+l" "$XDOTOOL_LOG"
-assert_status 0 $? "switcher.sh opens the address bar (ctrl+l) to refresh, instead of sending a plain reload"
+assert_status 0 $? "switcher.sh opens the address bar (ctrl+l) on every switch, instead of sending a plain reload"
 
 grep -qF "xdotool type --clearmodifiers -- https://example.test/page" "$XDOTOOL_LOG"
-assert_status 0 $? "switcher.sh re-types the tab's own URL into the address bar when refreshing"
+assert_status 0 $? "switcher.sh types the URL into the address bar on every switch"
 
 grep -q "xdotool key Return" "$XDOTOOL_LOG"
-assert_status 0 $? "switcher.sh presses Return to submit the re-typed URL"
+assert_status 0 $? "switcher.sh presses Return to submit the typed URL"
 
 grep -q "xdotool key ctrl+r" "$XDOTOOL_LOG"
 assert_status 1 $? "switcher.sh never sends a plain ctrl+r reload (it would hit Confirm Form Resubmission on a POSTed page)"
+
+grep -q "xdotool key ctrl+Tab" "$XDOTOOL_LOG"
+assert_status 1 $? "switcher.sh never sends ctrl+Tab (single-tab navigation, no multi-tab cycling)"
 
 # --- case 4: a duration edited via the dashboard takes effect on the
 # switcher's very next loop iteration, without restarting the service.
 # Found live: the admin changed a URL's duration from 10s to 30s and
 # applied it through the dashboard, but the already-running switcher
 # kept using the 10s it had loaded once at its own startup, minutes
-# earlier — config.json's mtime was 5 minutes after the switcher had
-# started. One URL, duration starts at 1s so the first "switch to next
-# tab" (ctrl+Tab) happens quickly; the moment it's observed, the
+# earlier. One URL, duration starts at 1s so the first navigate_to_url
+# (xdotool type) happens quickly; the moment it's observed, the
 # duration is rewritten to 60s. If the switcher is still using its
-# stale starting value, it keeps sending ctrl+Tab about once a second;
-# if it re-reads the file, it goes quiet for the rest of the test.
-# Waits for the first event instead of assuming a fixed startup delay,
-# so this isn't sensitive to how slow process/subprocess spawn is on
-# whatever machine runs the suite. ---
+# stale starting value, it keeps navigating about once a second; if it
+# re-reads the file, it goes quiet for the rest of the test. Waits for
+# the first event instead of assuming a fixed startup delay. ---
 cat > "$WORKDIR/config_live.json" <<'EOF'
 { "urls": [ { "url": "https://example.test/live", "duration": 1, "cycles": 0 } ] }
 EOF
@@ -137,19 +135,16 @@ write_config_atomically "$WORKDIR/config_live.json" \
   '{ "urls": [ { "url": "https://example.test/live", "duration": 60, "cycles": 0 } ] }'
 
 # An iteration that was already mid-read when this rewrite landed can
-# still see the stale 1s duration once more — an inherent race between an
-# external edit and an already-running read loop (the same race a real
-# admin's save has against a live switcher in production; it isn't new,
-# and a single straggler iteration is an acceptable outcome of it). 2.5s
-# gives that one straggler (and its own ctrl+Tab) room to finish. A
-# further 3s with the count unchanged is what actually proves the new
-# 60s duration took hold — if the bug were back and the switcher were
-# still stuck re-reading 1s, several more ctrl+Tabs would land in that
-# window instead.
+# still see the stale 1s duration once more — an inherent race between
+# an external edit and an already-running read loop (same race a real
+# admin's save has in production). 2.5s gives that one straggler room
+# to finish. A further 3s with the count unchanged is what proves the
+# new 60s duration took hold — if the bug were back the switcher would
+# keep typing a new URL about once a second instead of going quiet.
 sleep 2.5
-count_after_grace=$(grep -c "xdotool key ctrl+Tab" "$XDOTOOL_LOG")
+count_after_grace=$(grep -c "xdotool type" "$XDOTOOL_LOG" || echo 0)
 sleep 3
-count_final=$(grep -c "xdotool key ctrl+Tab" "$XDOTOOL_LOG")
+count_final=$(grep -c "xdotool type" "$XDOTOOL_LOG" || echo 0)
 
 kill "$SWITCHER_PID" 2>/dev/null || true
 wait "$SWITCHER_PID" 2>/dev/null || true
@@ -157,22 +152,20 @@ wait "$SWITCHER_PID" 2>/dev/null || true
 if [[ "$count_after_grace" -le 2 ]]; then
   assert_eq "yes" "yes" "switcher.sh picks up an edited duration within at most one in-flight (stale-read) iteration"
 else
-  assert_eq "yes" "no (saw $count_after_grace ctrl+Tabs within the grace window)" "switcher.sh picks up an edited duration within at most one in-flight (stale-read) iteration"
+  assert_eq "yes" "no (saw $count_after_grace navigations within the grace window)" "switcher.sh picks up an edited duration within at most one in-flight (stale-read) iteration"
 fi
 
 assert_eq "$count_after_grace" "$count_final" "switcher.sh re-reads duration from the config file every iteration, so an edit (1s -> 60s) takes effect without a service restart"
 
-# --- case 5: a URL ADDED via the dashboard (not just an existing one's
-# fields edited) is picked up without restarting the switcher. Found live
-# on the real device: config.json went from 1 URL to 2, aundekiosk-runner
-# was restarted (so Chromium correctly opened a second tab), but
-# aundekiosk-switcher was not — its startup log still said "Managing 1
-# tabs" from hours earlier, so it kept sending ctrl+Tab on the first
-# URL's own 1s duration forever and never visited the second tab at all.
-# Index 1 (the new URL) has cycles=1 so the very first time the switcher
-# actually lands on it, should_refresh fires immediately and types its
-# URL — an unambiguous, otherwise-impossible signal that URL_COUNT was
-# re-read live, not just cached from startup. ---
+# --- case 5: a URL ADDED via the dashboard is picked up without
+# restarting the switcher. Found live on the real device: config.json
+# went from 1 URL to 2, aundekiosk-runner was restarted (so Chromium
+# correctly opened a second tab), but aundekiosk-switcher was not — its
+# startup log still said "Managing 1 tabs" from hours earlier, so it
+# never visited the new URL at all.  With the single-tab address-bar
+# approach, the switcher always types the URL for the current index, so
+# when it advances to index 1 it types https://example.test/second —
+# an unambiguous signal that URL_COUNT was re-read live. ---
 cat > "$WORKDIR/config_grow.json" <<'EOF'
 { "urls": [ { "url": "https://example.test/first", "duration": 1, "cycles": 0 } ] }
 EOF
@@ -192,15 +185,12 @@ done
 write_config_atomically "$WORKDIR/config_grow.json" '{
   "urls": [
     { "url": "https://example.test/first", "duration": 1, "cycles": 0 },
-    { "url": "https://example.test/second", "duration": 1, "cycles": 1 }
+    { "url": "https://example.test/second", "duration": 1, "cycles": 0 }
   ]
 }'
 
-# Several jq spawns per switcher iteration (url_count/url/duration/cycles,
-# each its own process) make this slower under full-suite CPU contention
-# than alone — this previously flaked at a 10s bound (see the switcher
-# flakiness fix noted elsewhere in this file's history), so it polls
-# generously instead of assuming a fixed worst case is enough.
+# Several jq spawns per switcher iteration make this slower under full-suite
+# CPU contention than alone — poll generously instead of a fixed timeout.
 waited=0
 while ! grep -qF "https://example.test/second" "$XDOTOOL_LOG" 2>/dev/null && (( waited < 300 )); do
   sleep 0.1

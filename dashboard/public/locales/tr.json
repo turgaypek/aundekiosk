@@ -147,5 +147,11 @@
   "reboot_schedule_disabled_hint": "Planlı yeniden başlatma kapalı",
   "config_backup_age_hint": "Son yedek: {age} önce alındı",
   "remote_access_open_desktop": "Masaüstünü Aç",
-  "remote_access_open_terminal": "Terminali Aç"
+  "remote_access_open_terminal": "Terminali Aç",
+  "app_update_heading": "Uygulama Güncellemesi",
+  "app_update_hint": "GitHub'dan en son sürümü çeker ve servisleri yeniden başlatır. Dashboard birkaç saniyeliğine erişilemez olur.",
+  "app_update_button": "AundeKiosk'u Güncelle",
+  "app_update_state_idle": "Güncel",
+  "app_update_state_updating": "Güncelleniyor…",
+  "app_update_reconnecting": "Dashboard yeniden başlatılıyor, lütfen bekleyin…"
 }

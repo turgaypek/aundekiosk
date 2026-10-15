@@ -482,6 +482,59 @@ async function startAptUpgrade() {
   await loadAptUpgradeStatus();
 }
 
+// --- AundeKiosk application update ------------------------------------
+async function startAppUpdate() {
+  const btn = document.getElementById("app-update-start");
+  const stateEl = document.getElementById("app-update-state");
+  const reconnectMsg = document.getElementById("app-update-reconnect-msg");
+  if (!btn) return;
+
+  btn.disabled = true;
+  if (stateEl) {
+    stateEl.className = "badge bg-warning text-dark";
+    stateEl.setAttribute("data-i18n", "app_update_state_updating");
+    window.aundekiosk?.translateSubtree?.(stateEl);
+  }
+
+  const res = await fetch("/api/update", { method: "POST" });
+  if (!res.ok) {
+    btn.disabled = false;
+    if (stateEl) {
+      stateEl.className = "badge bg-secondary";
+      stateEl.setAttribute("data-i18n", "app_update_state_idle");
+      window.aundekiosk?.translateSubtree?.(stateEl);
+    }
+    alert(await res.text());
+    return;
+  }
+
+  // 202 Accepted — the dashboard will restart. Poll until it comes back.
+  if (reconnectMsg) reconnectMsg.hidden = false;
+
+  const MAX_WAIT_MS = 3 * 60 * 1000;
+  const POLL_INTERVAL_MS = 3000;
+  const started = Date.now();
+
+  while (Date.now() - started < MAX_WAIT_MS) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    try {
+      const pingRes = await fetch("/api/setup", { cache: "no-store" });
+      if (pingRes.ok) {
+        // Dashboard is back — reload the page to pick up new code.
+        window.location.reload();
+        return;
+      }
+    } catch {
+      // Still restarting — keep polling.
+    }
+  }
+
+  // Timed out — let the user know so they can refresh manually.
+  if (reconnectMsg) {
+    reconnectMsg.textContent = "Update timed out — please refresh the page.";
+  }
+}
+
 // --- Users -------------------------------------------------------------
 function renderUserRow(user) {
   const template = document.getElementById("template-user");
@@ -608,6 +661,7 @@ if (typeof document !== "undefined") {
 
   document.getElementById("add-user-button")?.addEventListener("click", addUser);
   document.getElementById("apt-upgrade-start")?.addEventListener("click", startAptUpgrade);
+  document.getElementById("app-update-start")?.addEventListener("click", startAppUpdate);
 
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.loadConfig = loadConfig;

@@ -26,3 +26,4 @@ aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-service.sh aun
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/toggle-service.sh aundekiosk-switcher stop
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/apt-upgrade.sh start
 aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/manage-reboot-timer.sh
+aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/run-update.sh

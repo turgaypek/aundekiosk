@@ -288,6 +288,17 @@ export function createHandler(options: HandlerOptions = {}) {
       return authApi.handleLogout(req, ip);
     }
 
+    if (url.pathname === "/api/update" && req.method === "POST") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      // Fire-and-forget: run-update.sh launches update.sh via systemd-run
+      // --no-block, which returns immediately. The update will restart the
+      // dashboard, so the response must be sent before that happens.
+      runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/run-update.sh"])
+        .catch((err) => console.error("Update trigger failed:", err));
+      return new Response("Update started.", { status: 202 });
+    }
+
     if (url.pathname === "/api/me" && req.method === "GET") {
       const session = authApi.requireSession(req);
       if (!session) return new Response("Unauthorized", { status: 401 });
