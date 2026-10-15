@@ -130,7 +130,7 @@ export function createAuthApi(opts: AuthApiOptions) {
       return new Response("Invalid username or password.", { status: 401 });
     }
 
-    const token = sessionStore.createSession(username);
+    const token = sessionStore.createSession(username, "admin"); // role propagation in Task 2
     await auditLog.record("login_succeeded", { username, ip });
     return new Response("Logged in.", { status: 200, headers: { "Set-Cookie": sessionCookieHeader(token) } });
   }

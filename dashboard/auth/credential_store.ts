@@ -6,6 +6,7 @@ export interface UserRecord {
   passwordHash: string;
   failedAttempts: number;
   lockedUntil: number | null;
+  role: "admin" | "viewer";
 }
 
 export type PublicUserRecord = Omit<UserRecord, "passwordHash">;
@@ -101,10 +102,16 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
           passwordHash: parsed.passwordHash,
           failedAttempts: parsed.failedAttempts,
           lockedUntil: parsed.lockedUntil,
+          role: "admin",
         }],
       };
     }
-    return parsed as StoreFile;
+    const file = parsed as StoreFile;
+    file.users = file.users.map((u) => ({
+      ...u,
+      role: (u.role === "admin" || u.role === "viewer") ? u.role : "admin",
+    }));
+    return file;
   }
 
   async function write(file: StoreFile): Promise<void> {
@@ -117,13 +124,18 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     return (await read()).users.length > 0;
   }
 
-  async function createUserLocked(username: string, password: string, email: string | null): Promise<void> {
+  async function createUserLocked(
+    username: string,
+    password: string,
+    email: string | null,
+    role: "admin" | "viewer" = "admin",
+  ): Promise<void> {
     const file = await read();
     if (file.users.some((u) => u.username === username)) {
       throw new Error(`User '${username}' already exists.`);
     }
     const passwordHash = await hashPassword(password);
-    file.users.push({ username, email, passwordHash, failedAttempts: 0, lockedUntil: null });
+    file.users.push({ username, email, passwordHash, failedAttempts: 0, lockedUntil: null, role });
     await write(file);
   }
 
@@ -131,7 +143,14 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     if ((await read()).users.length > 0) {
       throw new Error("Admin already configured.");
     }
-    await createUserLocked(username, password, null);
+    await createUserLocked(username, password, null, "admin");
+  }
+
+  async function getUserRoleLocked(username: string): Promise<"admin" | "viewer" | null> {
+    const file = await read();
+    const user = file.users.find((u) => u.username === username);
+    if (!user) return null;
+    return user.role;
   }
 
   async function deleteUserLocked(username: string): Promise<void> {
@@ -226,8 +245,9 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     hasAdmin,
     createInitialAdmin: (username: string, password: string) =>
       serialize(() => createInitialAdminLocked(username, password)),
-    createUser: (username: string, password: string, email: string | null) =>
-      serialize(() => createUserLocked(username, password, email)),
+    createUser: (username: string, password: string, email: string | null, role: "admin" | "viewer" = "admin") =>
+      serialize(() => createUserLocked(username, password, email, role)),
+    getUserRole: (username: string) => serialize(() => getUserRoleLocked(username)),
     deleteUser: (username: string) => serialize(() => deleteUserLocked(username)),
     resetPassword: (username: string, newPassword: string) =>
       serialize(() => resetPasswordLocked(username, newPassword)),

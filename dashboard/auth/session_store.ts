@@ -4,6 +4,7 @@ export interface SessionStoreOptions {
 
 interface SessionRecord {
   username: string;
+  role: "admin" | "viewer";
   lastActivityAt: number;
 }
 
@@ -21,13 +22,13 @@ export function createSessionStore(opts: SessionStoreOptions) {
   const { idleTimeoutMs } = opts;
   const sessions = new Map<string, SessionRecord>();
 
-  function createSession(username: string, now: number = Date.now()): string {
+  function createSession(username: string, role: "admin" | "viewer", now: number = Date.now()): string {
     const token = randomToken();
-    sessions.set(token, { username, lastActivityAt: now });
+    sessions.set(token, { username, role, lastActivityAt: now });
     return token;
   }
 
-  function touch(token: string, now: number = Date.now()): { username: string } | null {
+  function touch(token: string, now: number = Date.now()): { username: string; role: "admin" | "viewer" } | null {
     const record = sessions.get(token);
     if (!record) return null;
     if (now - record.lastActivityAt > idleTimeoutMs) {
@@ -35,7 +36,7 @@ export function createSessionStore(opts: SessionStoreOptions) {
       return null;
     }
     record.lastActivityAt = now;
-    return { username: record.username };
+    return { username: record.username, role: record.role };
   }
 
   function destroy(token: string): void {

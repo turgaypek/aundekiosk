@@ -387,3 +387,48 @@ Deno.test("createInitialAdmin succeeds against a corrupt auth.db, replacing it",
     assertEquals(await store.hasAdmin(), true);
   });
 });
+
+// --- user roles ---
+
+Deno.test("createUser stores viewer role and listUsers returns it", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    await store.createUser("viewer1", "another-long-pass", null, "viewer");
+    const users = await store.listUsers();
+    const v = users.find((u) => u.username === "viewer1");
+    assertEquals(v?.role, "viewer");
+  });
+});
+
+Deno.test("createInitialAdmin always produces an admin role", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    const users = await store.listUsers();
+    assertEquals(users[0].role, "admin");
+  });
+});
+
+Deno.test("getUserRole returns admin for legacy record without role field", async () => {
+  await withTempStore(async (storePath) => {
+    await Deno.writeTextFile(
+      storePath,
+      JSON.stringify({
+        username: "admin",
+        passwordHash: "irrelevant",
+        failedAttempts: 0,
+        lockedUntil: null,
+      }),
+    );
+    const store = createCredentialStore({ storePath });
+    assertEquals(await store.getUserRole("admin"), "admin");
+  });
+});
+
+Deno.test("getUserRole returns null for unknown user", async () => {
+  await withTempStore(async (storePath) => {
+    const store = createCredentialStore({ storePath });
+    assertEquals(await store.getUserRole("nobody"), null);
+  });
+});
