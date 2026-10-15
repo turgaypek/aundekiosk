@@ -104,4 +104,20 @@ for env_var in $(grep -oE 'Deno\.env\.get\("[A-Z_]+"\)' "$DASHBOARD_SERVER_TS" |
   esac
 done
 
+# Runner must declare OnFailure for crash recovery to trigger
+grep -q "^OnFailure=aundekiosk-recovery.service$" "$SERVICES_DIR/aundekiosk-runner.service.template"
+assert_status 0 $? "aundekiosk-runner.service.template declares OnFailure=aundekiosk-recovery.service"
+
+# Runner must have StartLimitBurst so systemd knows when to fire OnFailure
+grep -q "^StartLimitBurst=" "$SERVICES_DIR/aundekiosk-runner.service.template"
+assert_status 0 $? "aundekiosk-runner.service.template sets StartLimitBurst"
+
+# Recovery service must exist in the repo
+[ -f "$SERVICES_DIR/aundekiosk-recovery.service.template" ]
+assert_status 0 $? "aundekiosk-recovery.service.template exists in services/"
+
+# Recovery service must run recover-config.sh
+grep -q "^ExecStart=/opt/aundekiosk/privileged/recover-config.sh$" "$SERVICES_DIR/aundekiosk-recovery.service.template"
+assert_status 0 $? "aundekiosk-recovery.service.template runs recover-config.sh"
+
 assert_summary

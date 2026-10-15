@@ -196,6 +196,7 @@ sed -e "s|PI_HOME|$PI_HOME|g" -e "s|PI_SUID|$PI_SUID|g" -e "s|PI_USER|$PI_USER|g
 
 cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-dashboard.service.template" /etc/systemd/system/aundekiosk-dashboard.service
 cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-monitor.service.template" /etc/systemd/system/aundekiosk-monitor.service
+cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-recovery.service.template" /etc/systemd/system/aundekiosk-recovery.service
 
 msg "$INFO" "Reloading systemd and enabling services..."
 systemctl daemon-reload

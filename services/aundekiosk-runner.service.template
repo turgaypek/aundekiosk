@@ -1,6 +1,7 @@
 [Unit]
 Description=Launch AundeKiosk runner to start Chromium
 After=network.target
+OnFailure=aundekiosk-recovery.service
 
 [Service]
 Type=simple
@@ -13,6 +14,8 @@ Environment=WAYLAND_DISPLAY=wayland-0
 Environment=XAUTHORITY=PI_HOME/.Xauthority
 Environment=XDG_RUNTIME_DIR=/run/user/PI_SUID
 Restart=on-failure
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Install]
 WantedBy=graphical.target
