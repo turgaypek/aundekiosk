@@ -1,25 +1,24 @@
 #!/usr/bin/env bash
-# Public one-line entry point for a brand-new Pi, mirroring xiosk's own
-# curl | bash UX:
+# Public one-line entry point for a brand-new Pi:
 #   curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/master/scripts/setup/bootstrap.sh | sudo bash -s -- --install
 #   curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/master/scripts/setup/bootstrap.sh | sudo bash -s -- --update
-# Only two modes exist — AundeKiosk has no backup/cleanup equivalent of
-# xiosk's --backup/--cleanup (yet). All the real work still happens in
-# install.sh/update.sh; this only clones the repo once and hands off.
+#   curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/master/scripts/setup/bootstrap.sh | sudo bash -s -- --uninstall
+# All the real work happens in install.sh/update.sh/uninstall.sh;
+# this only clones the repo once and hands off.
 set -euo pipefail
 
 INSTALL_DIR="/opt/aundekiosk"
 REPO_URL="https://github.com/turgaypek/aundekiosk.git"
 
 usage() {
-    echo "Usage: bootstrap.sh --install | --update" >&2
+    echo "Usage: bootstrap.sh --install | --update | --uninstall" >&2
     exit 1
 }
 
 [ "$#" -eq 1 ] || usage
 
 case "$1" in
-    --install|--update) ;;
+    --install|--update|--uninstall) ;;
     *) usage ;;
 esac
 
@@ -39,5 +38,12 @@ case "$1" in
         ;;
     --update)
         exec bash "$INSTALL_DIR/scripts/setup/update.sh"
+        ;;
+    --uninstall)
+        if [ ! -d "$INSTALL_DIR/.git" ]; then
+            echo "AundeKiosk is not installed at $INSTALL_DIR — nothing to remove." >&2
+            exit 1
+        fi
+        exec bash "$INSTALL_DIR/scripts/setup/uninstall.sh"
         ;;
 esac
