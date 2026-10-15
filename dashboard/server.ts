@@ -22,6 +22,9 @@ import { createAptUpgradeApi } from "./apt_upgrade_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
 import { createDeviceInfoApi } from "./device_info_api.ts";
 import { createRebootScheduleApi } from "./reboot_schedule_api.ts";
+import { createNoVncProxy } from "./novnc_proxy.ts";
+import { createTtyProxy } from "./tty_proxy.ts";
+import { TERMINAL_HTML } from "./terminal_page.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -36,6 +39,8 @@ const DEFAULT_MONITOR_SAMPLE_PATH = `${import.meta.dirname}/../monitor-config.js
 const DEFAULT_APT_UPGRADE_LOG_PATH = "/opt/aundekiosk/apt-upgrade.log";
 const DEFAULT_REBOOT_REQUIRED_PATH = "/var/run/reboot-required";
 const DEFAULT_REBOOT_TIMER_PATH = "/etc/systemd/system/aundekiosk-reboot.timer";
+const DEFAULT_NOVNC_DIR = "/usr/share/novnc";
+const DEFAULT_TTY_BACKEND_URL = "ws://127.0.0.1:7681/ws";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const LOGIN_RATE_LIMIT = { maxAttempts: 10, windowMs: 60_000 };
@@ -51,6 +56,8 @@ export interface HandlerOptions {
   aptUpgradeLogPath?: string;
   rebootRequiredPath?: string;
   rebootTimerPath?: string;
+  novncDir?: string;
+  ttyBackendUrl?: string;
 }
 
 export function createHandler(options: HandlerOptions = {}) {
@@ -65,7 +72,19 @@ export function createHandler(options: HandlerOptions = {}) {
   const rebootRequiredPath = options.rebootRequiredPath ?? Deno.env.get("AUNDEKIOSK_REBOOT_REQUIRED_FILE") ?? DEFAULT_REBOOT_REQUIRED_PATH;
   const rebootTimerPath = options.rebootTimerPath ?? DEFAULT_REBOOT_TIMER_PATH;
 
+  const novncDir = options.novncDir ?? DEFAULT_NOVNC_DIR;
+  const ttyBackendUrl = options.ttyBackendUrl ?? DEFAULT_TTY_BACKEND_URL;
+
   const serveStatic = createStaticHandler(publicDir);
+  const noVncProxy = createNoVncProxy();
+  const ttyProxy = createTtyProxy({ backendUrl: ttyBackendUrl });
+  const auditLog = createAuditLog({ logPath: auditLogPath });
+  let serveNovnc: ((pathname: string) => Promise<Response>) | null = null;
+  try {
+    serveNovnc = createStaticHandler(novncDir);
+  } catch {
+    // noVNC not installed; /novnc/* routes return 503 until apt install novnc runs
+  }
   const configApi = createConfigApi({ configPath, samplePath });
   const monitorConfigApi = createMonitorConfigApi({ configPath: monitorConfigPath, samplePath: monitorSamplePath });
   const authApi = createAuthApi({
@@ -411,6 +430,43 @@ export function createHandler(options: HandlerOptions = {}) {
         return rebootScheduleApi.handleDelete(req, session.username, ip);
       }
       return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    if (url.pathname === "/novnc-ws") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+        return new Response("Expected WebSocket upgrade", { status: 426 });
+      }
+      auditLog.record("vnc_ws_connected", { username: session.username });
+      return noVncProxy.handleUpgrade(req);
+    }
+
+    if (url.pathname.startsWith("/novnc/")) {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      if (!serveNovnc) {
+        return new Response("noVNC not installed — run: apt install novnc", { status: 503 });
+      }
+      return serveNovnc(url.pathname.slice("/novnc".length));
+    }
+
+    if (url.pathname === "/tty-ws") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+        return new Response("Expected WebSocket upgrade", { status: 426 });
+      }
+      auditLog.record("tty_ws_connected", { username: session.username });
+      return ttyProxy.handleUpgrade(req);
+    }
+
+    if (url.pathname === "/terminal" && req.method === "GET") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return new Response(TERMINAL_HTML, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
     }
 
     return serveStatic(url.pathname);

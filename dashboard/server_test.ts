@@ -591,3 +591,75 @@ Deno.test("viewer session can access GET /config (viewer-allowed route)", async 
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+// --- noVNC proxy auth tests -------------------------------------------
+
+Deno.test("GET /novnc-ws without session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(new Request("http://localhost/novnc-ws"));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("GET /novnc/ without session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(new Request("http://localhost/novnc/vnc.html"));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// --- TTY proxy auth tests ---------------------------------------------
+
+Deno.test("GET /tty-ws without session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(new Request("http://localhost/tty-ws"));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("GET /terminal without session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(new Request("http://localhost/terminal"));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

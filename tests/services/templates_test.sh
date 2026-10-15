@@ -120,4 +120,27 @@ assert_status 0 $? "aundekiosk-recovery.service.template exists in services/"
 grep -q "^ExecStart=/opt/aundekiosk/privileged/recover-config.sh$" "$SERVICES_DIR/aundekiosk-recovery.service.template"
 assert_status 0 $? "aundekiosk-recovery.service.template runs recover-config.sh"
 
+# Dashboard needs outgoing TCP to wayvnc (5900) and outgoing WS to ttyd (7681)
+DASHBOARD_ALLOW_NET=$(grep -o "allow-net=[^ ]*" "$SERVICES_DIR/aundekiosk-dashboard.service.template" | cut -d= -f2)
+for addr in "127.0.0.1:5900" "127.0.0.1:7681"; do
+  case ",$DASHBOARD_ALLOW_NET," in
+    *",$addr,"*)
+      assert_eq "granted" "granted" "aundekiosk-dashboard.service.template --allow-net includes $addr"
+      ;;
+    *)
+      assert_eq "granted" "missing" "aundekiosk-dashboard.service.template --allow-net includes $addr"
+      ;;
+  esac
+done
+
+# Dashboard needs read access to noVNC static files
+case "$DASHBOARD_UNIT_CONTENT" in
+  *"/usr/share/novnc"*)
+    assert_eq "has-novnc-read" "has-novnc-read" "aundekiosk-dashboard.service.template --allow-read includes /usr/share/novnc"
+    ;;
+  *)
+    assert_eq "has-novnc-read" "missing" "aundekiosk-dashboard.service.template --allow-read includes /usr/share/novnc"
+    ;;
+esac
+
 assert_summary

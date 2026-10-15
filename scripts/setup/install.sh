@@ -51,10 +51,19 @@ msg "$INFO" "Recording the target user for OS password changes..."
 echo "$PI_USER" > "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 
-msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables)..."
+msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables, novnc)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip
+apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
+
+msg "$INFO" "Restricting wayvnc to localhost to prevent direct LAN access to the desktop..."
+install -d -m 0700 -o "$PI_USER" -g "$PI_USER" "$PI_HOME/.config/wayvnc"
+cat > "$PI_HOME/.config/wayvnc/config" << 'EOF'
+address=127.0.0.1
+EOF
+chown "$PI_USER:$PI_USER" "$PI_HOME/.config/wayvnc/config"
+chmod 0600 "$PI_HOME/.config/wayvnc/config"
+msg "$WARNING" "wayvnc restriction written. A running wayvnc session must be restarted (or the Pi rebooted) for the bind-address change to take effect."
 
 msg "$INFO" "Creating dedicated 'aundekiosk' system user for the dashboard..."
 if ! id -u aundekiosk >/dev/null 2>&1; then
