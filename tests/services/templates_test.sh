@@ -120,6 +120,22 @@ assert_status 0 $? "aundekiosk-recovery.service.template exists in services/"
 grep -q "^ExecStart=/opt/aundekiosk/privileged/recover-config.sh$" "$SERVICES_DIR/aundekiosk-recovery.service.template"
 assert_status 0 $? "aundekiosk-recovery.service.template runs recover-config.sh"
 
+# TTY service must exist
+[ -f "$SERVICES_DIR/aundekiosk-tty.service.template" ]
+assert_status 0 $? "aundekiosk-tty.service.template exists in services/"
+
+# TTY service must bind ttyd to 127.0.0.1 (not 0.0.0.0)
+grep -q "127.0.0.1" "$SERVICES_DIR/aundekiosk-tty.service.template"
+assert_status 0 $? "aundekiosk-tty.service.template binds ttyd to 127.0.0.1"
+
+# TTY service must run ttyd on port 7681
+grep -q "7681" "$SERVICES_DIR/aundekiosk-tty.service.template"
+assert_status 0 $? "aundekiosk-tty.service.template uses port 7681"
+
+# TTY service must run login (PAM auth, not a bare shell)
+grep -q " login$" "$SERVICES_DIR/aundekiosk-tty.service.template"
+assert_status 0 $? "aundekiosk-tty.service.template runs login(1) for PAM authentication"
+
 # Dashboard needs outgoing TCP to wayvnc (5900) and outgoing WS to ttyd (7681)
 DASHBOARD_ALLOW_NET=$(grep -o "allow-net=[^ ]*" "$SERVICES_DIR/aundekiosk-dashboard.service.template" | cut -d= -f2)
 for addr in "127.0.0.1:5900" "127.0.0.1:7681"; do

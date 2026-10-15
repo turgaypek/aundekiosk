@@ -53,7 +53,7 @@ chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 
 msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables, novnc)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc
+apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc ttyd
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 
 msg "$INFO" "Restricting wayvnc to localhost to prevent direct LAN access to the desktop..."
@@ -64,6 +64,9 @@ EOF
 chown "$PI_USER:$PI_USER" "$PI_HOME/.config/wayvnc/config"
 chmod 0600 "$PI_HOME/.config/wayvnc/config"
 msg "$WARNING" "wayvnc restriction written. A running wayvnc session must be restarted (or the Pi rebooted) for the bind-address change to take effect."
+
+msg "$INFO" "Installing the TTY service (browser terminal access via ttyd)..."
+cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-tty.service.template" /etc/systemd/system/aundekiosk-tty.service
 
 msg "$INFO" "Creating dedicated 'aundekiosk' system user for the dashboard..."
 if ! id -u aundekiosk >/dev/null 2>&1; then
@@ -209,12 +212,12 @@ cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-recovery.service.template" /etc/
 
 msg "$INFO" "Reloading systemd and enabling services..."
 systemctl daemon-reload
-systemctl enable aundekiosk-runner.service aundekiosk-switcher.service aundekiosk-dashboard.service aundekiosk-monitor.service
+systemctl enable aundekiosk-runner.service aundekiosk-switcher.service aundekiosk-dashboard.service aundekiosk-monitor.service aundekiosk-tty.service
 # restart, not start: on a fresh install nothing is running yet, so this
 # behaves identically to start; on an update (update.sh re-running this
 # script after `git pull`) it's the only way the already-running
 # services actually pick up new code or a changed unit file.
-systemctl restart aundekiosk-dashboard.service aundekiosk-monitor.service
+systemctl restart aundekiosk-dashboard.service aundekiosk-monitor.service aundekiosk-tty.service
 
 if [[ "$STOPPED_KIOSK_FOR_TMPFS_REMOUNT" -eq 1 ]]; then
     msg "$INFO" "Restarting the kiosk display (stopped earlier to force the corrected Chromium cache mount)..."

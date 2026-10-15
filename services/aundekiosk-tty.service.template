@@ -1,0 +1,12 @@
+[Unit]
+Description=AundeKiosk TTY daemon (browser terminal access via ttyd)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ttyd --interface 127.0.0.1 --port 7681 login
+User=root
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
