@@ -10,11 +10,23 @@ export function createTtyProxy(opts: TtyProxyOptions = {}) {
 
     client.addEventListener("open", () => {
       const backend = new WebSocket(backendUrl);
+      // Buffer messages that arrive before the backend connection is open.
+      // Without this, the initial resize frame ('1') sent by the browser on
+      // ws.open races the backend handshake and is silently dropped, so ttyd
+      // never starts the login process.
+      const pending: (string | ArrayBuffer | Blob)[] = [];
+
+      client.addEventListener("message", (e) => {
+        if (backend.readyState === WebSocket.OPEN) {
+          backend.send(e.data);
+        } else {
+          pending.push(e.data);
+        }
+      });
 
       backend.addEventListener("open", () => {
-        client.addEventListener("message", (e) => {
-          if (backend.readyState === WebSocket.OPEN) backend.send(e.data);
-        });
+        for (const msg of pending) backend.send(msg);
+        pending.length = 0;
         backend.addEventListener("message", (e) => {
           if (client.readyState === WebSocket.OPEN) client.send(e.data);
         });
