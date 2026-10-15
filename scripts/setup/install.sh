@@ -64,12 +64,22 @@ if ! command -v ttyd &>/dev/null; then
     *)       msg "$WARNING" "No prebuilt ttyd binary for $TTYD_ARCH — browser terminal will be unavailable." ; TTYD_BIN="" ;;
   esac
   if [ -n "$TTYD_BIN" ]; then
-    curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VER}/${TTYD_BIN}" -o /usr/local/bin/ttyd
-    chmod +x /usr/local/bin/ttyd
-    msg "$SUCCESS" "ttyd ${TTYD_VER} installed from GitHub."
+    if curl -fsSL --connect-timeout 15 "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VER}/${TTYD_BIN}" -o /usr/local/bin/ttyd; then
+      chmod +x /usr/local/bin/ttyd
+      msg "$SUCCESS" "ttyd ${TTYD_VER} installed from GitHub."
+    else
+      msg "$WARNING" "ttyd download failed (no internet?) — browser terminal will be unavailable."
+    fi
   fi
 fi
-curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
+if ! command -v deno &>/dev/null; then
+  if ! curl -fsSL --connect-timeout 15 https://deno.land/install.sh | DENO_INSTALL=/usr/local sh; then
+    msg "$ERROR" "Deno install failed and deno is not already installed. Dashboard cannot start without Deno."
+    exit 1
+  fi
+else
+  msg "$SUCCESS" "Deno already installed ($(deno --version | head -1)), skipping download."
+fi
 
 msg "$INFO" "Restricting wayvnc to localhost to prevent direct LAN access to the desktop..."
 install -d -m 0700 -o "$PI_USER" -g "$PI_USER" "$PI_HOME/.config/wayvnc"

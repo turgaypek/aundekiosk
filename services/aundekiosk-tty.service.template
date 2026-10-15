@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ttyd --interface 127.0.0.1 --port 7681 login
+ExecStart=/usr/local/bin/ttyd --interface 127.0.0.1 --port 7681 login
 User=root
 Restart=on-failure
 
