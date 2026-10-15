@@ -34,7 +34,7 @@ mapfile -t URLS < <(extract_urls_from_config "$CONFIG_FILE")
 exec chromium \
   --disable-component-update \
   --disable-composited-antialiasing \
-  --disable-gpu-driver-bug-workarounds \
+  --disable-dev-shm-usage \
   --disable-infobars \
   --disable-low-res-tiling \
   --disable-pinch \
@@ -42,9 +42,7 @@ exec chromium \
   --disable-smooth-scrolling \
   --enable-accelerated-video-decode \
   --enable-gpu-rasterization \
-  --enable-oop-rasterization \
   --force-device-scale-factor=1 \
-  --ignore-gpu-blocklist \
   --kiosk \
   --no-first-run \
   --noerrdialogs \
