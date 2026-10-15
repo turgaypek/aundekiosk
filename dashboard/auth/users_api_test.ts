@@ -4,6 +4,26 @@ import { createAuditLog } from "./audit_log.ts";
 import { createStepUpGuard } from "./step_up.ts";
 import { assertEquals } from "../test_util.ts";
 
+const TEST_IP = "203.0.113.5";
+
+async function withUsersApi(
+  fn: (api: ReturnType<typeof createUsersApi>, store: ReturnType<typeof createCredentialStore>) => Promise<void>,
+) {
+  const dir = await Deno.makeTempDir();
+  try {
+    const store = createCredentialStore({ storePath: `${dir}/auth.db` });
+    const auditLog = createAuditLog({ logPath: `${dir}/audit.log` });
+    const api = createUsersApi({
+      credentialStore: store,
+      stepUpGuard: createStepUpGuard({ credentialStore: store, auditLog }),
+      auditLog,
+    });
+    await fn(api, store);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+}
+
 async function withApi(
   fn: (api: ReturnType<typeof createUsersApi>, dir: string) => Promise<void>,
 ) {
@@ -205,5 +225,84 @@ Deno.test("handleDelete with a wrong confirmPassword returns 403 and deletes nob
     assertEquals(res.status, 403);
     const list = await (await api.handleList()).json();
     assertEquals(list.length, 2);
+  });
+});
+
+// --- role field ---
+
+Deno.test("handleCreate stores viewer role when role:viewer is passed", async () => {
+  await withUsersApi(async (api, store) => {
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    const res = await api.handleCreate(
+      new Request("http://localhost/users", {
+        method: "POST",
+        body: JSON.stringify({
+          username: "viewer1",
+          password: "viewer-long-pass-12",
+          email: null,
+          confirmPassword: "a-long-enough-password",
+          role: "viewer",
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      "admin", TEST_IP,
+    );
+    assertEquals(res.status, 201);
+    const users = await store.listUsers();
+    assertEquals(users.find((u) => u.username === "viewer1")?.role, "viewer");
+  });
+});
+
+Deno.test("handleCreate defaults to admin role when role is omitted", async () => {
+  await withUsersApi(async (api, store) => {
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    const res = await api.handleCreate(
+      new Request("http://localhost/users", {
+        method: "POST",
+        body: JSON.stringify({
+          username: "user2",
+          password: "user2-long-pass-12",
+          email: null,
+          confirmPassword: "a-long-enough-password",
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      "admin", TEST_IP,
+    );
+    assertEquals(res.status, 201);
+    const users = await store.listUsers();
+    assertEquals(users.find((u) => u.username === "user2")?.role, "admin");
+  });
+});
+
+Deno.test("handleCreate rejects an invalid role value", async () => {
+  await withUsersApi(async (api, store) => {
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    const res = await api.handleCreate(
+      new Request("http://localhost/users", {
+        method: "POST",
+        body: JSON.stringify({
+          username: "bad",
+          password: "bad-long-pass-12",
+          email: null,
+          confirmPassword: "a-long-enough-password",
+          role: "superadmin",
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      "admin", TEST_IP,
+    );
+    assertEquals(res.status, 400);
+  });
+});
+
+Deno.test("handleList returns role for each user", async () => {
+  await withUsersApi(async (api, store) => {
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    await store.createUser("viewer1", "viewer-long-pass-12", null, "viewer");
+    const res = await api.handleList();
+    const data = await res.json() as Array<{ username: string; role: string }>;
+    assertEquals(data.find((u) => u.username === "admin")?.role, "admin");
+    assertEquals(data.find((u) => u.username === "viewer1")?.role, "viewer");
   });
 });

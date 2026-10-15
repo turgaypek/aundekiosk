@@ -33,7 +33,7 @@ export function createUsersApi(opts: UsersApiOptions) {
     } catch {
       return new Response("Invalid JSON.", { status: 400 });
     }
-    const { username: newUsername, password, email, confirmPassword } = body as Record<string, unknown>;
+    const { username: newUsername, password, email, confirmPassword, role } = body as Record<string, unknown>;
 
     const stepUp = await requireStepUp(stepUpGuard, username, confirmPassword, ip);
     if (!stepUp.ok) {
@@ -55,9 +55,13 @@ export function createUsersApi(opts: UsersApiOptions) {
     if (email !== null && email !== undefined && (typeof email !== "string" || !EMAIL_PATTERN.test(email))) {
       return new Response("email must be a valid address, or null.", { status: 400 });
     }
+    if (role !== undefined && role !== "admin" && role !== "viewer") {
+      return new Response("role must be 'admin' or 'viewer'.", { status: 400 });
+    }
+    const userRole: "admin" | "viewer" = (role as "admin" | "viewer") ?? "admin";
 
     try {
-      await credentialStore.createUser(newUsername.trim(), password, (email as string | null) ?? null);
+      await credentialStore.createUser(newUsername.trim(), password, (email as string | null) ?? null, userRole);
     } catch (error) {
       await auditLog.record("user_created", { username, ip, targetUsername: newUsername, ok: false });
       if (error instanceof Error && error.message.includes("already exists")) {

@@ -69,6 +69,14 @@ export function createHandler(options: HandlerOptions = {}) {
     rateLimiter: createRateLimiter(LOGIN_RATE_LIMIT),
     auditLog: createAuditLog({ logPath: auditLogPath }),
   });
+
+  function requireAdmin(req: Request): { username: string; role: "admin" } | Response {
+    const session = authApi.requireSession(req);
+    if (!session) return new Response("Unauthorized", { status: 401 });
+    if (session.role !== "admin") return new Response("Forbidden", { status: 403 });
+    return session as { username: string; role: "admin" };
+  }
+
   const sshApi = createSshApi({
     stepUpGuard: createStepUpGuard({
       credentialStore: createCredentialStore({ storePath: authStorePath }),
@@ -237,89 +245,70 @@ export function createHandler(options: HandlerOptions = {}) {
     }
 
     if (url.pathname === "/monitor-config") {
-      if (!authApi.requireSession(req)) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       if (req.method === "GET") return monitorConfigApi.handleGet();
       if (req.method === "POST") return monitorConfigApi.handlePost(req);
       return new Response("Method Not Allowed", { status: 405 });
     }
 
     if (url.pathname === "/ssh-config" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return sshApi.handleToggle(req, session.username, ip);
     }
 
     if (url.pathname === "/os-password" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return osPasswordApi.handleChange(req, session.username, ip);
     }
 
     if (url.pathname === "/network-config" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return networkApi.handleApply(req, session.username, ip);
     }
 
     if (url.pathname === "/network-confirm" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return networkApi.handleConfirm(req, session.username, ip);
     }
 
     if (url.pathname === "/snmp-config" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return snmpApi.handleConfigure(req, session.username, ip);
     }
 
     if (url.pathname === "/remote-access-status" && req.method === "GET") {
-      if (!authApi.requireSession(req)) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return remoteAccessApi.handleStatus();
     }
 
     if (url.pathname === "/vnc-config" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return vncApi.handleToggle(req, session.username, ip);
     }
 
     if (url.pathname === "/hostname-config" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return hostnameApi.handleChange(req, session.username, ip);
     }
 
     if (url.pathname === "/service-status" && req.method === "GET") {
-      if (!authApi.requireSession(req)) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return serviceControlApi.handleStatus();
     }
 
     if (url.pathname === "/service-control" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return serviceControlApi.handleToggle(req, session.username, ip);
     }
 
@@ -331,47 +320,38 @@ export function createHandler(options: HandlerOptions = {}) {
     }
 
     if (url.pathname === "/audit-log" && req.method === "GET") {
-      if (!authApi.requireSession(req)) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return auditLogApi.handleGet();
     }
 
     if (url.pathname === "/users" && req.method === "GET") {
-      if (!authApi.requireSession(req)) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return usersApi.handleList();
     }
 
     if (url.pathname === "/users" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return usersApi.handleCreate(req, session.username, ip);
     }
 
     if (url.pathname === "/users-delete" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return usersApi.handleDelete(req, session.username, ip);
     }
 
     if (url.pathname === "/apt-upgrade/start" && req.method === "POST") {
-      const session = authApi.requireSession(req);
-      if (!session) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return aptUpgradeApi.handleStart(req, session.username, ip);
     }
 
     if (url.pathname === "/apt-upgrade/status" && req.method === "GET") {
-      if (!authApi.requireSession(req)) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
       return aptUpgradeApi.handleStatus();
     }
 

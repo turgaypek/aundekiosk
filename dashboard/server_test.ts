@@ -1,4 +1,5 @@
 import { createHandler, resolveTlsMode } from "./server.ts";
+import { createCredentialStore } from "./auth/credential_store.ts";
 import { assertEquals } from "./test_util.ts";
 
 function fakeConnInfo(hostname: string): Deno.ServeHandlerInfo {
@@ -501,6 +502,91 @@ Deno.test("GET /monitor-events without a session returns 401, never the event da
     });
     const res = await handle(new Request("http://localhost/monitor-events"));
     assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// --- viewer role enforcement ---
+
+async function loginAs(
+  handle: ReturnType<typeof createHandler>,
+  authStorePath: string,
+  username: string,
+  password: string,
+  role: "admin" | "viewer",
+): Promise<string> {
+  const store = createCredentialStore({ storePath: authStorePath });
+  if (username === "admin") {
+    await store.createInitialAdmin(username, password);
+  } else {
+    await store.createUser(username, password, null, role);
+  }
+  const loginRes = await handle(
+    new Request("http://localhost/api/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  return loginRes.headers.get("set-cookie")!;
+}
+
+Deno.test("viewer session gets 403 on admin-only POST /hostname-config", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const adminCookie = await loginAs(handle, `${dir}/auth.db`, "admin", "a-long-enough-password", "admin");
+    const viewerCookie = await loginAs(handle, `${dir}/auth.db`, "viewer1", "viewer-long-pass-12", "viewer");
+    const res = await handle(
+      new Request("http://localhost/hostname-config", {
+        method: "POST",
+        body: JSON.stringify({ hostname: "newname", confirmPassword: "viewer-long-pass-12" }),
+        headers: { "Content-Type": "application/json", cookie: viewerCookie },
+      }),
+    );
+    assertEquals(res.status, 403);
+    try {
+      const adminRes = await handle(
+        new Request("http://localhost/hostname-config", {
+          method: "POST",
+          body: JSON.stringify({ hostname: "newname", confirmPassword: "a-long-enough-password" }),
+          headers: { "Content-Type": "application/json", cookie: adminCookie },
+        }),
+      );
+      // Auth gate passed — not a 403
+      assertEquals(adminRes.status === 403, false);
+    } catch (err) {
+      // sudo unavailable in test env (Windows) — auth check passed, otherwise 403 returned before sudo
+      if (!(err instanceof Deno.errors.NotFound)) throw err;
+    }
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("viewer session can access GET /config (viewer-allowed route)", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    await loginAs(handle, `${dir}/auth.db`, "admin", "a-long-enough-password", "admin");
+    const viewerCookie = await loginAs(handle, `${dir}/auth.db`, "viewer1", "viewer-long-pass-12", "viewer");
+    const res = await handle(
+      new Request("http://localhost/config", { headers: { cookie: viewerCookie } }),
+    );
+    assertEquals(res.status, 200);
   } finally {
     await Deno.remove(dir, { recursive: true });
   }
