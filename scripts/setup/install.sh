@@ -53,7 +53,22 @@ chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 
 msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables, novnc)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc ttyd unclutter-xfixes
+apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc unclutter-xfixes
+# ttyd is not in Debian Trixie repos; install the prebuilt binary from GitHub.
+if ! command -v ttyd &>/dev/null; then
+  TTYD_VER="1.7.7"
+  TTYD_ARCH=$(uname -m)
+  case "$TTYD_ARCH" in
+    aarch64) TTYD_BIN="ttyd.aarch64" ;;
+    x86_64)  TTYD_BIN="ttyd.x86_64" ;;
+    *)       msg "$WARNING" "No prebuilt ttyd binary for $TTYD_ARCH — browser terminal will be unavailable." ; TTYD_BIN="" ;;
+  esac
+  if [ -n "$TTYD_BIN" ]; then
+    curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VER}/${TTYD_BIN}" -o /usr/local/bin/ttyd
+    chmod +x /usr/local/bin/ttyd
+    msg "$SUCCESS" "ttyd ${TTYD_VER} installed from GitHub."
+  fi
+fi
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 
 msg "$INFO" "Restricting wayvnc to localhost to prevent direct LAN access to the desktop..."
