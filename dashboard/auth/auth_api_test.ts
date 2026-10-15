@@ -227,6 +227,65 @@ Deno.test("handleLogout clears the session so the same cookie no longer authenti
   });
 });
 
+Deno.test("requireSession after admin login returns admin role", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const store = createCredentialStore({ storePath: `${dir}/auth.db` });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    const api = createAuthApi({
+      credentialStore: store,
+      sessionStore: createSessionStore({ idleTimeoutMs: 30 * 60_000 }),
+      rateLimiter: createRateLimiter({ maxAttempts: 100, windowMs: 60_000 }),
+      auditLog: createAuditLog({ logPath: `${dir}/audit.log` }),
+    });
+    const loginRes = await api.handleLogin(
+      new Request("http://localhost/api/login", {
+        method: "POST",
+        body: JSON.stringify({ username: "admin", password: "a-long-enough-password" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      TEST_IP,
+    );
+    const cookie = loginRes.headers.get("set-cookie")!;
+    const session = api.requireSession(
+      new Request("http://localhost/", { headers: { cookie } }),
+    );
+    assertEquals(session?.role, "admin");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("requireSession after viewer login returns viewer role", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const store = createCredentialStore({ storePath: `${dir}/auth.db` });
+    await store.createInitialAdmin("admin", "a-long-enough-password");
+    await store.createUser("viewer1", "viewer-long-pass-12", null, "viewer");
+    const api = createAuthApi({
+      credentialStore: store,
+      sessionStore: createSessionStore({ idleTimeoutMs: 30 * 60_000 }),
+      rateLimiter: createRateLimiter({ maxAttempts: 100, windowMs: 60_000 }),
+      auditLog: createAuditLog({ logPath: `${dir}/audit.log` }),
+    });
+    const loginRes = await api.handleLogin(
+      new Request("http://localhost/api/login", {
+        method: "POST",
+        body: JSON.stringify({ username: "viewer1", password: "viewer-long-pass-12" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      TEST_IP,
+    );
+    const cookie = loginRes.headers.get("set-cookie")!;
+    const session = api.requireSession(
+      new Request("http://localhost/", { headers: { cookie } }),
+    );
+    assertEquals(session?.role, "viewer");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 Deno.test("every login success, failure, lockout, and logout is recorded in the audit log in English with a timestamp and the caller-supplied IP", async () => {
   await withApi(async (api, dir) => {
     await api.handleSetup(

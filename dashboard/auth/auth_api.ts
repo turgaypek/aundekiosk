@@ -130,7 +130,8 @@ export function createAuthApi(opts: AuthApiOptions) {
       return new Response("Invalid username or password.", { status: 401 });
     }
 
-    const token = sessionStore.createSession(username, "admin"); // role propagation in Task 2
+    const role = (await credentialStore.getUserRole(username)) ?? "admin";
+    const token = sessionStore.createSession(username, role);
     await auditLog.record("login_succeeded", { username, ip });
     return new Response("Logged in.", { status: 200, headers: { "Set-Cookie": sessionCookieHeader(token) } });
   }
@@ -144,7 +145,7 @@ export function createAuthApi(opts: AuthApiOptions) {
     return new Response("Logged out.", { status: 200, headers: { "Set-Cookie": clearCookieHeader() } });
   }
 
-  function requireSession(req: Request): { username: string } | null {
+  function requireSession(req: Request): { username: string; role: "admin" | "viewer" } | null {
     const token = readSessionToken(req);
     if (!token) return null;
     return sessionStore.touch(token);
