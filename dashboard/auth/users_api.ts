@@ -104,5 +104,38 @@ export function createUsersApi(opts: UsersApiOptions) {
     return new Response(`User '${targetUsername}' deleted.`, { status: 200 });
   }
 
-  return { handleList, handleCreate, handleDelete };
+  async function handleUpdateRole(req: Request, username: string, ip: string): Promise<Response> {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response("Invalid JSON.", { status: 400 });
+    }
+    const { username: targetUsername, role, confirmPassword } = body as Record<string, unknown>;
+
+    const stepUp = await requireStepUp(stepUpGuard, username, confirmPassword, ip);
+    if (!stepUp.ok) {
+      return new Response(stepUp.message, { status: stepUp.status });
+    }
+
+    if (typeof targetUsername !== "string" || targetUsername.length === 0) {
+      return new Response("username is required.", { status: 400 });
+    }
+    if (role !== "admin" && role !== "viewer") {
+      return new Response("role must be 'admin' or 'viewer'.", { status: 400 });
+    }
+
+    try {
+      await credentialStore.updateRole(targetUsername, role);
+    } catch (error) {
+      await auditLog.record("user_role_changed", { username, ip, targetUsername, role, ok: false });
+      const message = error instanceof Error ? error.message : "Could not update role.";
+      return new Response(message, { status: 400 });
+    }
+
+    await auditLog.record("user_role_changed", { username, ip, targetUsername, role: role as string, ok: true });
+    return new Response(`User '${targetUsername}' role set to '${role}'.`, { status: 200 });
+  }
+
+  return { handleList, handleCreate, handleDelete, handleUpdateRole };
 }

@@ -153,6 +153,16 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     return user.role;
   }
 
+  async function updateRoleLocked(username: string, role: "admin" | "viewer"): Promise<void> {
+    const file = await read();
+    const index = file.users.findIndex((u) => u.username === username);
+    if (index === -1) {
+      throw new Error(`User '${username}' does not exist.`);
+    }
+    file.users[index] = { ...file.users[index], role };
+    await write(file);
+  }
+
   async function deleteUserLocked(username: string): Promise<void> {
     const file = await read();
     if (file.users.length <= 1) {
@@ -248,6 +258,8 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     createUser: (username: string, password: string, email: string | null, role: "admin" | "viewer" = "admin") =>
       serialize(() => createUserLocked(username, password, email, role)),
     getUserRole: (username: string) => serialize(() => getUserRoleLocked(username)),
+    updateRole: (username: string, role: "admin" | "viewer") =>
+      serialize(() => updateRoleLocked(username, role)),
     deleteUser: (username: string) => serialize(() => deleteUserLocked(username)),
     resetPassword: (username: string, newPassword: string) =>
       serialize(() => resetPasswordLocked(username, newPassword)),

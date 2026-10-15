@@ -328,12 +328,16 @@
     </section>
 
     <template id="template-user">
-      <li class="list-group-item d-flex justify-content-between align-items-center">
+      <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
         <span>
           <span class="user-username fw-semibold"></span>
           <span class="user-email text-body-secondary small ms-2"></span>
         </span>
-        <button type="button" class="btn btn-sm btn-outline-danger user-delete" data-i18n="remove_button">Remove</button>
+        <span class="d-flex align-items-center gap-2 ms-auto">
+          <span class="badge user-role-badge"></span>
+          <button type="button" class="btn btn-sm btn-outline-secondary user-toggle-role" data-i18n="users_change_role_button">Change Role</button>
+          <button type="button" class="btn btn-sm btn-outline-danger user-delete" data-i18n="remove_button">Remove</button>
+        </span>
       </li>
     </template>
 

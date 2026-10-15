@@ -423,6 +423,48 @@ Deno.test("POST /users-delete without a session returns 401", async () => {
   }
 });
 
+Deno.test("POST /users-role without a session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(
+      new Request("http://localhost/users-role", { method: "POST", body: JSON.stringify({}) }),
+    );
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("POST /users-role with a viewer session returns 403", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const viewerCookie = await loginAs(handle, `${dir}/auth.db`, "vieweruser", "viewerpassword123", "viewer");
+    const res = await handle(
+      new Request("http://localhost/users-role", {
+        method: "POST",
+        headers: { Cookie: viewerCookie },
+        body: JSON.stringify({ username: "vieweruser", role: "admin", confirmPassword: "viewerpassword123" }),
+      }),
+    );
+    assertEquals(res.status, 403);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 Deno.test("POST /apt-upgrade/start without a session returns 401, never invoking the privileged start", async () => {
   const dir = await Deno.makeTempDir();
   try {

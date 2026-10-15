@@ -542,8 +542,31 @@ function renderUserRow(user) {
   window.aundekiosk?.translateSubtree?.(row);
   row.querySelector(".user-username").textContent = user.username;
   row.querySelector(".user-email").textContent = user.email || "";
+  const badge = row.querySelector(".user-role-badge");
+  if (badge) {
+    badge.textContent = user.role === "admin"
+      ? (window.aundekiosk?.t?.("users_role_admin") ?? "Admin")
+      : (window.aundekiosk?.t?.("users_role_viewer") ?? "Viewer");
+    badge.className = "badge " + (user.role === "admin" ? "bg-danger" : "bg-secondary");
+  }
+  const toggleBtn = row.querySelector(".user-toggle-role");
+  if (toggleBtn) toggleBtn.addEventListener("click", () => changeUserRole(user.username, user.role));
   row.querySelector(".user-delete").addEventListener("click", () => deleteUser(user.username));
   return row;
+}
+
+async function changeUserRole(username, currentRole) {
+  const newRole = currentRole === "admin" ? "viewer" : "admin";
+  const confirmPassword = promptForStepUp();
+  if (!confirmPassword) return;
+  const res = await fetch("/users-role", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, role: newRole, confirmPassword }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) await loadUsers();
 }
 
 async function loadUsers() {

@@ -420,6 +420,12 @@ export function createHandler(options: HandlerOptions = {}) {
       return usersApi.handleDelete(req, session.username, ip);
     }
 
+    if (url.pathname === "/users-role" && req.method === "POST") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return usersApi.handleUpdateRole(req, session.username, ip);
+    }
+
     if (url.pathname === "/apt-upgrade/start" && req.method === "POST") {
       const session = requireAdmin(req);
       if (session instanceof Response) return session;
