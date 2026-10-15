@@ -31,6 +31,11 @@ mapfile -t URLS < <(extract_urls_from_config "$CONFIG_FILE")
 # plain string) so none of them is word-split or glob-expanded, and "--"
 # marks the end of chromium's own switches so a URL value can never be
 # parsed as a flag even if one somehow began with "--".
+# Hide the mouse cursor after 3 seconds of inactivity.
+if command -v unclutter-xfixes > /dev/null 2>&1; then
+  unclutter-xfixes --timeout 3 &
+fi
+
 exec chromium \
   --disable-component-update \
   --disable-composited-antialiasing \

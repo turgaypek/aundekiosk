@@ -34,6 +34,15 @@ async function bootstrapAuth() {
     const authenticated = configRes.status !== 401;
     const state = decideUiState(hasAdmin, authenticated);
     showOnly(state === "app" ? appSection : loginSection);
+
+    if (state === "app") {
+      const meRes = await fetch("/api/me");
+      const { role } = meRes.ok ? await meRes.json() : { role: "viewer" };
+      for (const el of document.querySelectorAll("[data-admin-only]")) {
+        el.hidden = role !== "admin";
+      }
+    }
+
     if (state === "app" && window.aundekiosk?.loadConfig) {
       window.aundekiosk.loadConfig();
     }

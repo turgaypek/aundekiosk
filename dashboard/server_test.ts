@@ -592,6 +592,55 @@ Deno.test("viewer session can access GET /config (viewer-allowed route)", async 
   }
 });
 
+Deno.test("GET /api/me without a session returns 401", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const res = await handle(new Request("http://localhost/api/me"));
+    assertEquals(res.status, 401);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("GET /api/me returns username and role for an authenticated session", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const handle = createHandler({
+      configPath: `${dir}/config.json`,
+      samplePath: `${dir}/config.json.sample`,
+      authStorePath: `${dir}/auth.db`,
+      auditLogPath: `${dir}/audit.log`,
+    });
+    const adminCookie = await loginAs(handle, `${dir}/auth.db`, "admin1", "a-long-enough-pass", "admin");
+    const viewerCookie = await loginAs(handle, `${dir}/auth.db`, "viewer1", "viewer-long-pass-12", "viewer");
+
+    const adminRes = await handle(
+      new Request("http://localhost/api/me", { headers: { cookie: adminCookie } }),
+    );
+    assertEquals(adminRes.status, 200);
+    const adminData = await adminRes.json();
+    assertEquals(adminData.username, "admin1");
+    assertEquals(adminData.role, "admin");
+
+    const viewerRes = await handle(
+      new Request("http://localhost/api/me", { headers: { cookie: viewerCookie } }),
+    );
+    assertEquals(viewerRes.status, 200);
+    const viewerData = await viewerRes.json();
+    assertEquals(viewerData.username, "viewer1");
+    assertEquals(viewerData.role, "viewer");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 // --- noVNC proxy auth tests -------------------------------------------
 
 Deno.test("GET /novnc-ws without session returns 401", async () => {

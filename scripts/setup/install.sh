@@ -53,7 +53,7 @@ chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 
 msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables, novnc)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc ttyd
+apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc ttyd unclutter-xfixes
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 
 msg "$INFO" "Restricting wayvnc to localhost to prevent direct LAN access to the desktop..."

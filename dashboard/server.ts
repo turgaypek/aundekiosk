@@ -288,6 +288,14 @@ export function createHandler(options: HandlerOptions = {}) {
       return authApi.handleLogout(req, ip);
     }
 
+    if (url.pathname === "/api/me" && req.method === "GET") {
+      const session = authApi.requireSession(req);
+      if (!session) return new Response("Unauthorized", { status: 401 });
+      return new Response(JSON.stringify({ username: session.username, role: session.role }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     if (url.pathname === "/config") {
       if (!authApi.requireSession(req)) {
         return new Response("Unauthorized", { status: 401 });
