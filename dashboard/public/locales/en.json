@@ -145,5 +145,7 @@
   "reboot_schedule_disable_button": "Disable",
   "reboot_schedule_next_hint": "Next reboot: {time}",
   "reboot_schedule_disabled_hint": "Scheduled reboot is off",
-  "config_backup_age_hint": "Last backup: {age} ago"
+  "config_backup_age_hint": "Last backup: {age} ago",
+  "remote_access_open_desktop": "Open Desktop",
+  "remote_access_open_terminal": "Open Terminal"
 }

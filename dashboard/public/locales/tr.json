@@ -145,5 +145,7 @@
   "reboot_schedule_disable_button": "Devre Dışı Bırak",
   "reboot_schedule_next_hint": "Sonraki yeniden başlatma: {time}",
   "reboot_schedule_disabled_hint": "Planlı yeniden başlatma kapalı",
-  "config_backup_age_hint": "Son yedek: {age} önce alındı"
+  "config_backup_age_hint": "Son yedek: {age} önce alındı",
+  "remote_access_open_desktop": "Masaüstünü Aç",
+  "remote_access_open_terminal": "Terminali Aç"
 }

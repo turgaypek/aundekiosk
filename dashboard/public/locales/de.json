@@ -145,5 +145,7 @@
   "reboot_schedule_disable_button": "Deaktivieren",
   "reboot_schedule_next_hint": "Nächster Neustart: {time}",
   "reboot_schedule_disabled_hint": "Geplanter Neustart ist deaktiviert",
-  "config_backup_age_hint": "Letzte Sicherung: vor {age}"
+  "config_backup_age_hint": "Letzte Sicherung: vor {age}",
+  "remote_access_open_desktop": "Desktop öffnen",
+  "remote_access_open_terminal": "Terminal öffnen"
 }

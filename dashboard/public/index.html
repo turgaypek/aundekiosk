@@ -161,6 +161,19 @@
           <div class="card-body">
             <ul class="list-group list-group-flush mb-4" id="remote-access-list"></ul>
 
+            <div class="d-flex flex-wrap gap-2 mb-4">
+              <button type="button" class="btn btn-outline-secondary"
+                      data-i18n="remote_access_open_desktop"
+                      onclick="window.open('/novnc/vnc.html?autoconnect=true&amp;path=novnc-ws', '_blank')">
+                Open Desktop
+              </button>
+              <button type="button" class="btn btn-outline-secondary"
+                      data-i18n="remote_access_open_terminal"
+                      onclick="window.open('/terminal', '_blank')">
+                Open Terminal
+              </button>
+            </div>
+
             <h3 class="h6" data-i18n="hostname_heading">Hostname</h3>
             <p class="text-body-secondary small" data-i18n="hostname_hint">A reboot is required for every service to pick up a new hostname.</p>
             <div class="d-flex flex-wrap gap-2 mb-4">
