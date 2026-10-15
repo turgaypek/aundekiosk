@@ -1,0 +1,6 @@
+[Unit]
+Description=AundeKiosk scheduled reboot
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/reboot

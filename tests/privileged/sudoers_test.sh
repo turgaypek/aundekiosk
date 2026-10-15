@@ -69,6 +69,9 @@ else
   assert_eq "no-wildcards" "no-wildcards" "sudoers file contains no wildcard or variable-expansion patterns"
 fi
 
+grep -q "^aundekiosk ALL=(root) NOPASSWD: /opt/aundekiosk/privileged/manage-reboot-timer.sh$" "$SUDOERS_FILE"
+assert_status 0 $? "sudoers file grants aundekiosk exactly the manage-reboot-timer.sh line"
+
 if command -v visudo >/dev/null 2>&1; then
   visudo -c -f "$SUDOERS_FILE" > /tmp/aundekiosk_visudo_check.txt 2>&1
   assert_status 0 $? "sudoers file passes visudo syntax check"
