@@ -42,6 +42,10 @@ function isValidConfigShape(value: unknown): value is { urls: KioskUrlEntry[] } 
 export interface ConfigApiOptions {
   configPath: string;
   samplePath?: string;
+  // Called after every successful save so the runner relaunches Chromium
+  // with the updated URL list (runner reads URLs once at startup).
+  // Best-effort: failures are logged but do not fail the config save.
+  runKioskRestart?: () => Promise<void>;
 }
 
 export function createConfigApi(opts: ConfigApiOptions) {
@@ -115,6 +119,14 @@ export function createConfigApi(opts: ConfigApiOptions) {
       await Deno.rename(backupTmpPath, backupPath);
     } catch {
       // Backup failure does not fail the config save.
+    }
+
+    if (opts.runKioskRestart) {
+      try {
+        await opts.runKioskRestart();
+      } catch (error) {
+        console.error("Kiosk restart after config save failed:", error);
+      }
     }
 
     return new Response("Config saved.", { status: 200 });

@@ -2,6 +2,8 @@
 // DOM-dependent, so (like i18n.js and auth.js) this is verified by manual
 // QA in a real browser (spec §11), not a Deno unit test.
 
+let _urlDragSrc = null;
+
 function renderUrlRow(entry) {
   const template = document.getElementById("template-url");
   const row = template.content.firstElementChild.cloneNode(true);
@@ -15,6 +17,34 @@ function renderUrlRow(entry) {
   // of a <template> well after that scan already ran.
   window.aundekiosk?.translateSubtree?.(row);
   row.querySelector(".remove-url").addEventListener("click", () => row.remove());
+
+  row.addEventListener("dragstart", (e) => {
+    _urlDragSrc = row;
+    e.dataTransfer.effectAllowed = "move";
+    // Defer the opacity change so the drag ghost image is captured first.
+    setTimeout(() => row.classList.add("opacity-50"), 0);
+  });
+  row.addEventListener("dragend", () => {
+    row.classList.remove("opacity-50");
+    document.querySelectorAll("#urls ul li.url-drag-over")
+      .forEach((r) => r.classList.remove("url-drag-over"));
+    _urlDragSrc = null;
+  });
+  row.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    if (_urlDragSrc && _urlDragSrc !== row) row.classList.add("url-drag-over");
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("url-drag-over"));
+  row.addEventListener("drop", (e) => {
+    e.preventDefault();
+    row.classList.remove("url-drag-over");
+    if (!_urlDragSrc || _urlDragSrc === row) return;
+    const list = row.parentNode;
+    const srcIdx = [...list.children].indexOf(_urlDragSrc);
+    const dstIdx = [...list.children].indexOf(row);
+    list.insertBefore(_urlDragSrc, srcIdx < dstIdx ? row.nextSibling : row);
+  });
+
   return row;
 }
 

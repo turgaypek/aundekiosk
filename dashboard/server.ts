@@ -85,7 +85,13 @@ export function createHandler(options: HandlerOptions = {}) {
   } catch {
     // noVNC not installed; /novnc/* routes return 503 until apt install novnc runs
   }
-  const configApi = createConfigApi({ configPath, samplePath });
+  const configApi = createConfigApi({
+    configPath,
+    samplePath,
+    runKioskRestart: async () => {
+      await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/restart-kiosk-services.sh"]);
+    },
+  });
   const monitorConfigApi = createMonitorConfigApi({ configPath: monitorConfigPath, samplePath: monitorSamplePath });
   const authApi = createAuthApi({
     credentialStore: createCredentialStore({ storePath: authStorePath }),

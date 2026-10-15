@@ -268,6 +268,61 @@ Deno.test("handleBackupInfo returns hasBackup:true after a save", async () => {
 // Deno.FileInfo.mode is always null on Windows (no Unix permission
 // bits to report), so this assertion only runs where it can mean
 // anything — which is exactly the real deployment target (Linux).
+Deno.test("handlePost calls runKioskRestart after a successful save", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    let restartCalled = false;
+    const api = createConfigApi({
+      configPath,
+      samplePath: `${dir}/unused.json`,
+      runKioskRestart: async () => { restartCalled = true; },
+    });
+    const res = await api.handlePost(new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({ urls: [{ url: "https://b.test", duration: 10, cycles: 0 }] }),
+    }));
+    assertEquals(res.status, 200);
+    assertEquals(restartCalled, true);
+  });
+});
+
+Deno.test("handlePost does not fail when runKioskRestart throws", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    const api = createConfigApi({
+      configPath,
+      samplePath: `${dir}/unused.json`,
+      runKioskRestart: async () => { throw new Error("systemctl unavailable"); },
+    });
+    const res = await api.handlePost(new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({ urls: [{ url: "https://b.test", duration: 10, cycles: 0 }] }),
+    }));
+    // Config was saved; restart failure must not fail the request.
+    assertEquals(res.status, 200);
+    const saved = JSON.parse(await Deno.readTextFile(configPath));
+    assertEquals(saved.urls[0].url, "https://b.test");
+  });
+});
+
+Deno.test("handlePost does not call runKioskRestart when config validation fails", async () => {
+  await withTempDir(async (dir) => {
+    const configPath = `${dir}/config.json`;
+    let restartCalled = false;
+    const api = createConfigApi({
+      configPath,
+      samplePath: `${dir}/unused.json`,
+      runKioskRestart: async () => { restartCalled = true; },
+    });
+    const res = await api.handlePost(new Request("http://localhost/config", {
+      method: "POST",
+      body: "not json",
+    }));
+    assertEquals(res.status, 400);
+    assertEquals(restartCalled, false);
+  });
+});
+
 Deno.test("POST writes config.json with mode 0644 (world-readable), not the UMask-restricted default", async () => {
   await withTempDir(async (dir) => {
     const configPath = `${dir}/config.json`;
