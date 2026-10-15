@@ -35,6 +35,7 @@ export const TERMINAL_HTML = `<!DOCTYPE html>
 
     ws.addEventListener('open', () => {
       ws.send('1' + JSON.stringify({ columns: term.cols, rows: term.rows }));
+      term.focus();
     });
 
     ws.addEventListener('message', (event) => {

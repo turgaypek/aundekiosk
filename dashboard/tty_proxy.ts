@@ -9,11 +9,12 @@ export function createTtyProxy(opts: TtyProxyOptions = {}) {
     const { socket: client, response } = Deno.upgradeWebSocket(req);
 
     client.addEventListener("open", () => {
-      const backend = new WebSocket(backendUrl);
+      const backend = new WebSocket(backendUrl, ["tty"]);
       // Buffer messages that arrive before the backend connection is open.
       // Without this, the initial resize frame ('1') sent by the browser on
       // ws.open races the backend handshake and is silently dropped, so ttyd
       // never starts the login process.
+      // ttyd also requires the "tty" WebSocket subprotocol to start the process.
       const pending: (string | ArrayBuffer | Blob)[] = [];
 
       client.addEventListener("message", (e) => {
