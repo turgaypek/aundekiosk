@@ -1,6 +1,7 @@
 // TERMINAL_HTML is served at GET /terminal (admin-only).
 // Loads xterm.js from CDN and connects to /tty-ws using the ttyd WebSocket protocol:
-//   server → client: binary frame, byte[0]=1 means OUTPUT, byte[1:] is UTF-8 text
+//   server → client: TEXT frame, char[0]='1' means OUTPUT, rest is UTF-8 text
+//                    char[0]='3' = SET_WINDOW_TITLE, char[0]='4' = SET_PREFERENCES
 //   client → server: text frame, "0" + input | "1" + JSON resize
 export const TERMINAL_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -37,9 +38,15 @@ export const TERMINAL_HTML = `<!DOCTYPE html>
     });
 
     ws.addEventListener('message', (event) => {
-      if (event.data instanceof ArrayBuffer) {
+      // ttyd sends TEXT frames; handle binary as fallback for alternative backends
+      if (typeof event.data === 'string') {
+        if (event.data.length > 0 && event.data[0] === '1') {
+          term.write(event.data.slice(1));
+        }
+      } else if (event.data instanceof ArrayBuffer) {
         const data = new Uint8Array(event.data);
-        if (data[0] === 1) {
+        // byte 49 = ASCII '1' = OUTPUT; byte 1 = legacy binary protocol
+        if (data[0] === 49 || data[0] === 1) {
           term.write(new TextDecoder().decode(data.slice(1)));
         }
       }
