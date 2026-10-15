@@ -66,17 +66,20 @@ case "$DASHBOARD_UNIT_CONTENT" in
 esac
 
 # service_control_api.ts's status reads run `systemctl is-active <unit>`
-# directly, unprivileged (no sudo needed for a read-only query) — but
-# still needs its own --allow-run grant, or Deno refuses to spawn it at
-# all (the same NotCapable failure class as C4a's missing sudo grant).
-case "$DASHBOARD_UNIT_CONTENT" in
-  *"--allow-run=sudo,systemctl"*|*"--allow-run=systemctl,sudo"*)
-    assert_eq "has-allow-run-systemctl" "has-allow-run-systemctl" "aundekiosk-dashboard.service.template grants --allow-run=systemctl so service-status reads can actually run"
-    ;;
-  *)
-    assert_eq "has-allow-run-systemctl" "missing" "aundekiosk-dashboard.service.template grants --allow-run=systemctl so service-status reads can actually run"
-    ;;
-esac
+# directly; device_info_api.ts runs `hostname` and `ip addr` unprivileged.
+# All need their own --allow-run entries or Deno refuses to spawn them.
+DASHBOARD_ALLOW_RUN=$(grep -o "allow-run=[^ ]*" "$SERVICES_DIR/aundekiosk-dashboard.service.template" | cut -d= -f2)
+
+for cmd in sudo systemctl hostname ip; do
+  case ",$DASHBOARD_ALLOW_RUN," in
+    *",$cmd,"*)
+      assert_eq "granted" "granted" "aundekiosk-dashboard.service.template --allow-run includes $cmd"
+      ;;
+    *)
+      assert_eq "granted" "missing" "aundekiosk-dashboard.service.template --allow-run includes $cmd"
+      ;;
+  esac
+done
 
 # Discovered by actually running the dashboard service for real (never
 # exercised before — every prior test used `deno test`'s own, much

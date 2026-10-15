@@ -20,6 +20,7 @@ import { createUsersApi } from "./auth/users_api.ts";
 import { createAuditLogApi } from "./audit_log_api.ts";
 import { createAptUpgradeApi } from "./apt_upgrade_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
+import { createDeviceInfoApi } from "./device_info_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -213,6 +214,14 @@ export function createHandler(options: HandlerOptions = {}) {
       }
     },
   });
+  const deviceInfoApi = createDeviceInfoApi({
+    runCommand: async (cmd, args) => {
+      const c = new Deno.Command(cmd, { args, stdout: "piped", stderr: "piped" });
+      const { stdout } = await c.output();
+      return new TextDecoder().decode(stdout);
+    },
+    readFile: (path) => Deno.readTextFile(path),
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -353,6 +362,13 @@ export function createHandler(options: HandlerOptions = {}) {
       const session = requireAdmin(req);
       if (session instanceof Response) return session;
       return aptUpgradeApi.handleStatus();
+    }
+
+    if (url.pathname === "/device-info" && req.method === "GET") {
+      if (!authApi.requireSession(req)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      return deviceInfoApi.handleGet();
     }
 
     return serveStatic(url.pathname);
