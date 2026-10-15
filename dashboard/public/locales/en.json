@@ -135,5 +135,14 @@
   "audit_event_user_deleted": "{username} deleted user '{targetUsername}' ({status}) (IP: {ip})",
   "audit_event_apt_upgrade_requested": "{username} requested a system update ({status}) (IP: {ip})",
   "audit_event_apt_upgrade_started": "System update started",
-  "audit_event_apt_upgrade_finished": "System update finished ({status})"
+  "audit_event_apt_upgrade_finished": "System update finished ({status})",
+  "audit_event_reboot_schedule_enabled": "{username} scheduled daily reboot at {time} ({status}) (IP: {ip})",
+  "audit_event_reboot_schedule_disabled": "{username} disabled scheduled reboot ({status}) (IP: {ip})",
+  "reboot_schedule_heading": "Scheduled Reboot",
+  "reboot_schedule_enabled_label": "Enabled",
+  "reboot_schedule_time_label": "Time",
+  "reboot_schedule_save_button": "Save",
+  "reboot_schedule_disable_button": "Disable",
+  "reboot_schedule_next_hint": "Next reboot: {time}",
+  "reboot_schedule_disabled_hint": "Scheduled reboot is off"
 }

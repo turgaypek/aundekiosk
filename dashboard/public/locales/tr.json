@@ -135,5 +135,14 @@
   "audit_event_user_deleted": "{username} '{targetUsername}' kullanıcısını sildi ({status}) (IP: {ip})",
   "audit_event_apt_upgrade_requested": "{username} sistem güncellemesi başlattı ({status}) (IP: {ip})",
   "audit_event_apt_upgrade_started": "Sistem güncellemesi başladı",
-  "audit_event_apt_upgrade_finished": "Sistem güncellemesi tamamlandı ({status})"
+  "audit_event_apt_upgrade_finished": "Sistem güncellemesi tamamlandı ({status})",
+  "audit_event_reboot_schedule_enabled": "{username} günlük yeniden başlatmayı {time} olarak ayarladı ({status}) (IP: {ip})",
+  "audit_event_reboot_schedule_disabled": "{username} planlı yeniden başlatmayı devre dışı bıraktı ({status}) (IP: {ip})",
+  "reboot_schedule_heading": "Planlı Yeniden Başlatma",
+  "reboot_schedule_enabled_label": "Aktif",
+  "reboot_schedule_time_label": "Saat",
+  "reboot_schedule_save_button": "Kaydet",
+  "reboot_schedule_disable_button": "Devre Dışı Bırak",
+  "reboot_schedule_next_hint": "Sonraki yeniden başlatma: {time}",
+  "reboot_schedule_disabled_hint": "Planlı yeniden başlatma kapalı"
 }

@@ -135,5 +135,14 @@
   "audit_event_user_deleted": "{username} hat den Benutzer '{targetUsername}' gelöscht ({status}) (IP: {ip})",
   "audit_event_apt_upgrade_requested": "{username} hat eine Systemaktualisierung angefordert ({status}) (IP: {ip})",
   "audit_event_apt_upgrade_started": "Systemaktualisierung gestartet",
-  "audit_event_apt_upgrade_finished": "Systemaktualisierung abgeschlossen ({status})"
+  "audit_event_apt_upgrade_finished": "Systemaktualisierung abgeschlossen ({status})",
+  "audit_event_reboot_schedule_enabled": "{username} hat den täglichen Neustart auf {time} gesetzt ({status}) (IP: {ip})",
+  "audit_event_reboot_schedule_disabled": "{username} hat den geplanten Neustart deaktiviert ({status}) (IP: {ip})",
+  "reboot_schedule_heading": "Geplanter Neustart",
+  "reboot_schedule_enabled_label": "Aktiv",
+  "reboot_schedule_time_label": "Uhrzeit",
+  "reboot_schedule_save_button": "Speichern",
+  "reboot_schedule_disable_button": "Deaktivieren",
+  "reboot_schedule_next_hint": "Nächster Neustart: {time}",
+  "reboot_schedule_disabled_hint": "Geplanter Neustart ist deaktiviert"
 }

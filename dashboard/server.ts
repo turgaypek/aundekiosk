@@ -21,6 +21,7 @@ import { createAuditLogApi } from "./audit_log_api.ts";
 import { createAptUpgradeApi } from "./apt_upgrade_api.ts";
 import { runPrivilegedCommand } from "./privileged_runner.ts";
 import { createDeviceInfoApi } from "./device_info_api.ts";
+import { createRebootScheduleApi } from "./reboot_schedule_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -34,6 +35,7 @@ const DEFAULT_MONITOR_CONFIG_PATH = "/opt/aundekiosk/monitor-config.json";
 const DEFAULT_MONITOR_SAMPLE_PATH = `${import.meta.dirname}/../monitor-config.json.sample`;
 const DEFAULT_APT_UPGRADE_LOG_PATH = "/opt/aundekiosk/apt-upgrade.log";
 const DEFAULT_REBOOT_REQUIRED_PATH = "/var/run/reboot-required";
+const DEFAULT_REBOOT_TIMER_PATH = "/etc/systemd/system/aundekiosk-reboot.timer";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const LOGIN_RATE_LIMIT = { maxAttempts: 10, windowMs: 60_000 };
@@ -48,6 +50,7 @@ export interface HandlerOptions {
   monitorSamplePath?: string;
   aptUpgradeLogPath?: string;
   rebootRequiredPath?: string;
+  rebootTimerPath?: string;
 }
 
 export function createHandler(options: HandlerOptions = {}) {
@@ -60,6 +63,7 @@ export function createHandler(options: HandlerOptions = {}) {
   const monitorSamplePath = options.monitorSamplePath ?? DEFAULT_MONITOR_SAMPLE_PATH;
   const aptUpgradeLogPath = options.aptUpgradeLogPath ?? Deno.env.get("AUNDEKIOSK_APT_UPGRADE_LOG_FILE") ?? DEFAULT_APT_UPGRADE_LOG_PATH;
   const rebootRequiredPath = options.rebootRequiredPath ?? Deno.env.get("AUNDEKIOSK_REBOOT_REQUIRED_FILE") ?? DEFAULT_REBOOT_REQUIRED_PATH;
+  const rebootTimerPath = options.rebootTimerPath ?? DEFAULT_REBOOT_TIMER_PATH;
 
   const serveStatic = createStaticHandler(publicDir);
   const configApi = createConfigApi({ configPath, samplePath });
@@ -222,6 +226,21 @@ export function createHandler(options: HandlerOptions = {}) {
     },
     readFile: (path) => Deno.readTextFile(path),
   });
+  const rebootScheduleApi = createRebootScheduleApi({
+    stepUpGuard: createStepUpGuard({
+      credentialStore: createCredentialStore({ storePath: authStorePath }),
+      auditLog: createAuditLog({ logPath: auditLogPath }),
+    }),
+    auditLog: createAuditLog({ logPath: auditLogPath }),
+    runPrivilegedManage: async (payload) => {
+      await runPrivilegedCommand(
+        "sudo",
+        ["/opt/aundekiosk/privileged/manage-reboot-timer.sh"],
+        JSON.stringify(payload),
+      );
+    },
+    readTimerFile: () => Deno.readTextFile(rebootTimerPath),
+  });
 
   return async function handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     const url = new URL(req.url);
@@ -369,6 +388,24 @@ export function createHandler(options: HandlerOptions = {}) {
         return new Response("Unauthorized", { status: 401 });
       }
       return deviceInfoApi.handleGet();
+    }
+
+    if (url.pathname === "/reboot-schedule") {
+      if (req.method === "GET") {
+        if (!authApi.requireSession(req)) return new Response("Unauthorized", { status: 401 });
+        return rebootScheduleApi.handleGet();
+      }
+      if (req.method === "POST") {
+        const session = requireAdmin(req);
+        if (session instanceof Response) return session;
+        return rebootScheduleApi.handleSet(req, session.username, ip);
+      }
+      if (req.method === "DELETE") {
+        const session = requireAdmin(req);
+        if (session instanceof Response) return session;
+        return rebootScheduleApi.handleDelete(req, session.username, ip);
+      }
+      return new Response("Method Not Allowed", { status: 405 });
     }
 
     return serveStatic(url.pathname);
