@@ -176,8 +176,82 @@ Deno.test("POST does not leave a stray temp file behind after a successful save"
     await api.handlePost(req);
     const entries: string[] = [];
     for await (const entry of Deno.readDir(dir)) entries.push(entry.name);
-    assertEquals(JSON.stringify(entries), JSON.stringify(["config.json"]));
+    entries.sort();
+    const expected = ["config.json", "config.json.backup"];
+    assertEquals(entries.length, expected.length);
+    assertEquals(entries[0], expected[0]);
+    assertEquals(entries[1], expected[1]);
   });
+});
+
+Deno.test("handlePost writes a backup file alongside config.json after a successful save", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const configPath = `${dir}/config.json`;
+    const api = createConfigApi({ configPath, samplePath: `${dir}/config.json.sample` });
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    const body = JSON.stringify({ urls: [{ url: "https://example.com", duration: 10, cycles: 0 }] });
+    const res = await api.handlePost(new Request("http://localhost/config", {
+      method: "POST", body, headers: { "Content-Type": "application/json" },
+    }));
+    assertEquals(res.status, 200);
+    const backup = await Deno.readTextFile(`${configPath}.backup`);
+    const parsed = JSON.parse(backup);
+    assertEquals(parsed.urls[0].url, "https://example.com");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("handlePost does not write a backup when the save fails (invalid JSON)", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const configPath = `${dir}/config.json`;
+    const api = createConfigApi({ configPath, samplePath: `${dir}/config.json.sample` });
+    const res = await api.handlePost(new Request("http://localhost/config", {
+      method: "POST", body: "not json",
+    }));
+    assertEquals(res.status, 400);
+    let threw = false;
+    try { await Deno.stat(`${configPath}.backup`); } catch { threw = true; }
+    assertEquals(threw, true);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("handleBackupInfo returns hasBackup:false before any save", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const api = createConfigApi({ configPath: `${dir}/config.json`, samplePath: `${dir}/config.json.sample` });
+    const res = await api.handleBackupInfo();
+    assertEquals(res.status, 200);
+    const data = await res.json();
+    assertEquals(data.hasBackup, false);
+    assertEquals(data.backupAgeSeconds, null);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("handleBackupInfo returns hasBackup:true after a save", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const configPath = `${dir}/config.json`;
+    const api = createConfigApi({ configPath, samplePath: `${dir}/config.json.sample` });
+    await Deno.writeTextFile(`${dir}/config.json.sample`, JSON.stringify({ urls: [] }));
+    await api.handlePost(new Request("http://localhost/config", {
+      method: "POST",
+      body: JSON.stringify({ urls: [] }),
+      headers: { "Content-Type": "application/json" },
+    }));
+    const res = await api.handleBackupInfo();
+    const data = await res.json();
+    assertEquals(data.hasBackup, true);
+    assertEquals(typeof data.backupAgeSeconds, "number");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });
 
 // Found on the real Pi: the dashboard runs with UMask=0077 (so audit.log

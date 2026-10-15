@@ -105,8 +105,35 @@ export function createConfigApi(opts: ConfigApiOptions) {
       // Deno.chmod is a no-op/unsupported on Windows; harmless to skip there.
     }
     await Deno.rename(tmpPath, configPath);
+
+    // Best-effort backup — failure is non-fatal since the main save already succeeded.
+    const backupPath = `${configPath}.backup`;
+    const backupTmpPath = `${backupPath}.tmp-${crypto.randomUUID()}`;
+    try {
+      await Deno.writeTextFile(backupTmpPath, JSON.stringify(normalized, null, 2));
+      try { await Deno.chmod(backupTmpPath, 0o644); } catch { /* no-op on Windows */ }
+      await Deno.rename(backupTmpPath, backupPath);
+    } catch {
+      // Backup failure does not fail the config save.
+    }
+
     return new Response("Config saved.", { status: 200 });
   }
 
-  return { handleGet, handlePost };
+  async function handleBackupInfo(): Promise<Response> {
+    const backupPath = `${configPath}.backup`;
+    try {
+      const stat = await Deno.stat(backupPath);
+      const mtimeMs = stat.mtime?.getTime() ?? Date.now();
+      const backupAgeSeconds = Math.max(0, Math.floor((Date.now() - mtimeMs) / 1000));
+      return Response.json({ hasBackup: true, backupAgeSeconds });
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        return Response.json({ hasBackup: false, backupAgeSeconds: null });
+      }
+      throw error;
+    }
+  }
+
+  return { handleGet, handlePost, handleBackupInfo };
 }

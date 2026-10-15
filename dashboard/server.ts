@@ -272,6 +272,11 @@ export function createHandler(options: HandlerOptions = {}) {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
+    if (url.pathname === "/config-backup-info" && req.method === "GET") {
+      if (!authApi.requireSession(req)) return new Response("Unauthorized", { status: 401 });
+      return configApi.handleBackupInfo();
+    }
+
     if (url.pathname === "/monitor-config") {
       const session = requireAdmin(req);
       if (session instanceof Response) return session;

@@ -144,5 +144,6 @@
   "reboot_schedule_save_button": "Save",
   "reboot_schedule_disable_button": "Disable",
   "reboot_schedule_next_hint": "Next reboot: {time}",
-  "reboot_schedule_disabled_hint": "Scheduled reboot is off"
+  "reboot_schedule_disabled_hint": "Scheduled reboot is off",
+  "config_backup_age_hint": "Last backup: {age} ago"
 }
