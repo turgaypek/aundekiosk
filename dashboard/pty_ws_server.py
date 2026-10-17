@@ -7,7 +7,7 @@ Implements ttyd's WebSocket protocol:
   Server→Client: '1'+data=OUTPUT, '2'+title=TITLE, '3'+json=PREFS
 """
 import base64, fcntl, hashlib, json, os, pty, select, signal
-import socket, struct, termios, threading
+import socket, struct, subprocess, termios, threading
 
 HOST = '127.0.0.1'
 PORT = 7681
@@ -94,7 +94,7 @@ def set_pty_size(fd, cols, rows):
 
 
 def handle(conn):
-    pid = None
+    proc = None
     master_fd = None
     done = threading.Event()
     try:
@@ -107,25 +107,27 @@ def handle(conn):
         conn.sendall(ws_frame(b'3{}'))
 
         master_fd, slave_fd = pty.openpty()
-        pid = os.fork()
-        if pid == 0:
-            os.close(master_fd)
+
+        env = dict(os.environ)
+        env.update({
+            'TERM': 'xterm-256color',
+            'HOME': '/root',
+            'USER': 'root',
+            'LOGNAME': 'root',
+            'SHELL': '/bin/bash',
+        })
+
+        def child_preexec():
             os.setsid()
-            fcntl.ioctl(slave_fd, termios.TIOCSCTTY, 0)
-            for fd in (0, 1, 2):
-                os.dup2(slave_fd, fd)
-            if slave_fd > 2:
-                os.close(slave_fd)
-            env = dict(os.environ)
-            env.update({
-                'TERM': 'xterm-256color',
-                'HOME': '/root',
-                'USER': 'root',
-                'LOGNAME': 'root',
-                'SHELL': '/bin/bash',
-            })
-            os.execve(COMMAND[0], COMMAND, env)
-            os._exit(1)
+            fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
+        proc = subprocess.Popen(
+            COMMAND,
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            preexec_fn=child_preexec,
+            env=env,
+            close_fds=True,
+        )
         os.close(slave_fd)
 
         def pty_to_ws():
@@ -187,13 +189,13 @@ def handle(conn):
         pass
     finally:
         done.set()
-        if pid:
+        if proc is not None:
             try:
-                os.kill(pid, signal.SIGHUP)
+                proc.kill()
             except Exception:
                 pass
             try:
-                os.waitpid(pid, os.WNOHANG)
+                proc.wait(timeout=2)
             except Exception:
                 pass
         if master_fd is not None:
