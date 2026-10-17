@@ -33,6 +33,5 @@ if ! raspi-config nonint is_pifive 2>/dev/null; then
 fi
 
 exec wayvnc --detached \
-    --gpu \
     --config /etc/wayvnc/config \
     --socket /tmp/wayvnc/wayvncctl.sock
