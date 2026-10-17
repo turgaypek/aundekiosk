@@ -81,14 +81,55 @@ else
   msg "$SUCCESS" "Deno already installed ($(deno --version | head -1)), skipping download."
 fi
 
-msg "$INFO" "Restricting wayvnc to localhost to prevent direct LAN access to the desktop..."
-install -d -m 0700 -o "$PI_USER" -g "$PI_USER" "$PI_HOME/.config/wayvnc"
-cat > "$PI_HOME/.config/wayvnc/config" << 'EOF'
+msg "$INFO" "Configuring system wayvnc for dashboard VNC proxy..."
+# The system wayvnc service (/usr/lib/systemd/system/wayvnc.service) uses
+# /etc/wayvnc/config, NOT the per-user config.  We need two changes:
+#
+# 1. address=127.0.0.1 — bind to localhost only; the dashboard /novnc-ws
+#    WebSocket proxy is the only path in, so direct LAN access is blocked.
+#
+# 2. enable_auth=false — wayvnc's default auth (VeNCrypt/RA2) uses security
+#    types 19, 129, 5.  noVNC only understands types 1 (None) and 2 (VNC
+#    password).  With enable_auth=false wayvnc offers type 1 (None), which
+#    noVNC accepts.  Authentication is handled at the dashboard layer
+#    (session cookie required for the /novnc-ws WebSocket upgrade).
+if [ -f /etc/wayvnc/config ]; then
+    cp /etc/wayvnc/config /etc/wayvnc/config.bak
+    cat > /etc/wayvnc/config << 'EOF'
+use_relative_paths=true
 address=127.0.0.1
+enable_auth=false
 EOF
-chown "$PI_USER:$PI_USER" "$PI_HOME/.config/wayvnc/config"
-chmod 0600 "$PI_HOME/.config/wayvnc/config"
-msg "$WARNING" "wayvnc restriction written. A running wayvnc session must be restarted (or the Pi rebooted) for the bind-address change to take effect."
+    msg "$SUCCESS" "Updated /etc/wayvnc/config (localhost-only, no VNC-level auth)."
+else
+    msg "$WARNING" "wayvnc system package not installed; skipping /etc/wayvnc/config update."
+fi
+
+# The system wayvnc-run.sh hard-codes XDG_RUNTIME_DIR=/tmp/wayvnc, so
+# wayvnc can't find the user's Wayland socket at /run/user/UID/wayland-0.
+# A systemd drop-in that overrides ExecStart with our own wrapper fixes
+# this without touching the package-owned script.
+PI_UID=$(id -u "$PI_USER")
+install -d -m 0755 /etc/systemd/system/wayvnc.service.d
+cat > /etc/systemd/system/wayvnc.service.d/kiosk-display.conf << EOF
+[Service]
+ExecStart=
+ExecStart=/opt/aundekiosk/scripts/setup/wayvnc-kiosk-run.sh
+Environment="XDG_RUNTIME_DIR=/run/user/${PI_UID}"
+Environment="WAYLAND_DISPLAY=wayland-0"
+EOF
+chmod 0644 /etc/systemd/system/wayvnc.service.d/kiosk-display.conf
+msg "$SUCCESS" "Created wayvnc systemd override to use kiosk Wayland display."
+
+chmod +x "$AUNDEKIOSK_INSTALL_DIR/scripts/setup/wayvnc-kiosk-run.sh"
+
+systemctl daemon-reload
+if systemctl is-active --quiet wayvnc; then
+    systemctl restart wayvnc
+    msg "$SUCCESS" "wayvnc restarted with new config."
+else
+    msg "$INFO" "wayvnc not currently active; it will pick up the new config on next start."
+fi
 
 msg "$INFO" "Installing the TTY service (browser terminal access via ttyd)..."
 cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-tty.service.template" /etc/systemd/system/aundekiosk-tty.service
