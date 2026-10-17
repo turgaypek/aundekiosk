@@ -12,14 +12,20 @@ export const TERMINAL_HTML = `<!DOCTYPE html>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
   <style>
     html, body { margin: 0; padding: 0; background: #1e1e1e; height: 100%; overflow: hidden; }
-    #terminal { padding: 4px; height: 100%; box-sizing: border-box; }
+    #terminal { padding: 4px; height: calc(100% - 22px); box-sizing: border-box; }
+    #term-status { position: fixed; bottom: 0; left: 0; right: 0; height: 22px; background: #111; color: #0c0; font-family: monospace; font-size: 11px; padding: 3px 8px; box-sizing: border-box; border-top: 1px solid #333; white-space: nowrap; overflow: hidden; }
   </style>
 </head>
 <body>
   <div id="terminal"></div>
+  <div id="term-status">Baglaniyor...</div>
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
   <script>
+    const statusEl = document.getElementById('term-status');
+    let keyCount = 0;
+    function setStatus(msg) { statusEl.textContent = msg; }
+
     const term = new Terminal({ cursorBlink: true, theme: { background: '#1e1e1e' } });
 
     // AddonFit may or may not load (CDN); fall back to fixed size gracefully
@@ -36,7 +42,12 @@ export const TERMINAL_HTML = `<!DOCTYPE html>
     ws.addEventListener('open', () => {
       ws.send('1' + JSON.stringify({ columns: term.cols, rows: term.rows }));
       term.focus();
+      setTimeout(() => term.focus(), 200);
+      setStatus('Baglandi — terminale tiklayin ve yazin');
     });
+
+    // Any click anywhere on the page focuses the terminal
+    document.addEventListener('click', () => term.focus());
 
     ws.addEventListener('message', (event) => {
       // ttyd sends TEXT frames; handle binary as fallback for alternative backends
@@ -54,8 +65,13 @@ export const TERMINAL_HTML = `<!DOCTYPE html>
     });
 
     term.onData((data) => {
+      keyCount++;
+      setStatus('Gonderildi: ' + keyCount + ' tus | WS: ' + (ws.readyState === 1 ? 'ACIK' : 'KAPALI'));
       if (ws.readyState === WebSocket.OPEN) ws.send('0' + data);
     });
+
+    term.onFocus(() => setStatus('ODAKLANMIS — yazabilirsiniz'));
+    term.onBlur(() => setStatus('ODAK YOK — terminale tiklayin'));
 
     term.onResize(({ cols, rows }) => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -64,8 +80,8 @@ export const TERMINAL_HTML = `<!DOCTYPE html>
     });
 
     if (fitAddon) window.addEventListener('resize', () => { fitAddon.fit(); });
-    ws.addEventListener('close', () => term.write('\\r\\n[Connection closed]\\r\\n'));
-    ws.addEventListener('error', () => term.write('\\r\\n[Connection error — check that the TTY service is running]\\r\\n'));
+    ws.addEventListener('close', () => { term.write('\\r\\n[Baglanti kesildi]\\r\\n'); setStatus('Baglanti kesildi'); });
+    ws.addEventListener('error', () => { term.write('\\r\\n[Baglanti hatasi]\\r\\n'); setStatus('Baglanti hatasi'); });
   </script>
 </body>
 </html>`;
