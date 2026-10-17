@@ -10,33 +10,16 @@ STARTUP_DELAY="${AUNDEKIOSK_STARTUP_DELAY:-15}"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
-DISPLAY_SERVER=$(detect_display_server "${WAYLAND_DISPLAY:-}" "${DISPLAY:-}")
-SWITCH_TOOL=$(select_switch_tool "$DISPLAY_SERVER")
+CDP_NAVIGATE="$SCRIPT_DIR/cdp-navigate.py"
 
-if [[ "$DISPLAY_SERVER" == "unknown" ]]; then
-  echo "WARNING: could not detect a display server (neither WAYLAND_DISPLAY nor DISPLAY is set). Falling back to '$SWITCH_TOOL'."
-fi
-
-echo "Detected display server: $DISPLAY_SERVER (using $SWITCH_TOOL)"
-
-# Every navigation re-types the URL into the address bar (Ctrl+L) rather
-# than sending a plain Ctrl+R reload.  A plain reload re-submits the
-# tab's current history entry — reported live on the real device: an
-# ASP.NET WebForms signage page had a POST as its history entry, so
-# Ctrl+R popped Chromium's "Confirm Form Resubmission" dialog and blocked
-# the kiosk display until someone clicked through it by hand.  Re-typing
-# is always a fresh GET, so this can never happen again for any URL.
+# Navigate via Chromium DevTools Protocol (CDP).  Chromium is started with
+# --remote-debugging-port=9222 by runner.sh so cdp-navigate.py can send a
+# Page.navigate command directly over a WebSocket.  This is more reliable
+# than wtype/xdotool because it does not depend on window focus, display
+# server type, or whether kiosk mode intercepts keyboard shortcuts.
 navigate_to_url() {
   local url="$1"
-  if [[ "$SWITCH_TOOL" == "wtype" ]]; then
-    wtype -M ctrl -P l -m ctrl
-    wtype -- "$url"
-    wtype -P Return
-  else
-    xdotool key ctrl+l
-    xdotool type --clearmodifiers -- "$url"
-    xdotool key Return
-  fi
+  python3 "$CDP_NAVIGATE" "$url"
 }
 
 if ! has_urls "$CONFIG_FILE"; then
