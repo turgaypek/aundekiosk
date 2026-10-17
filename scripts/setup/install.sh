@@ -140,7 +140,7 @@ if ! id -u aundekiosk >/dev/null 2>&1; then
 fi
 
 msg "$INFO" "Making runtime and privileged scripts executable..."
-chmod +x "$AUNDEKIOSK_INSTALL_DIR"/runtime/*.sh "$AUNDEKIOSK_INSTALL_DIR"/privileged/*.sh "$AUNDEKIOSK_INSTALL_DIR"/monitor/*.sh
+chmod +x "$AUNDEKIOSK_INSTALL_DIR"/runtime/*.sh "$AUNDEKIOSK_INSTALL_DIR"/runtime/*.py "$AUNDEKIOSK_INSTALL_DIR"/privileged/*.sh "$AUNDEKIOSK_INSTALL_DIR"/monitor/*.sh
 
 msg "$INFO" "Setting up configuration file..."
 if [ ! -f "$AUNDEKIOSK_CONFIG_FILE" ]; then
