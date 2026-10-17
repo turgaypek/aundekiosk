@@ -56,6 +56,7 @@ exec chromium \
   --kiosk \
   --no-first-run \
   --noerrdialogs \
+  --ozone-platform=wayland \
   --renderer-process-limit=1 \
   --user-data-dir="$CHROMIUM_CACHE_DIR" \
   -- \
