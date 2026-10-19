@@ -53,6 +53,9 @@ function validateNetworkPayload(body: Record<string, unknown>): string | null {
     if (typeof ssid !== "string" || ssid.length < 1 || ssid.length > 32) {
       return "wifiSsid must be 1-32 characters.";
     }
+    if (ssid.includes('\n') || ssid.includes('\r')) {
+      return "wifiSsid must not contain newline characters.";
+    }
     if (typeof password !== "string" || password.length < 8 || password.length > 63) {
       return "wifiPassword must be 8-63 characters.";
     }

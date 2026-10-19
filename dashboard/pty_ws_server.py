@@ -14,6 +14,14 @@ PORT = 7681
 COMMAND = ['/bin/bash', '-l']
 WS_GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
+# Origins allowed to open a terminal. Browser clients always send Origin;
+# server-to-server clients (like the dashboard proxy) typically do not.
+# Override with AUNDEKIOSK_ALLOWED_ORIGINS (comma-separated) in the
+# systemd unit's Environment= to add the Pi's LAN address, e.g.:
+#   Environment=AUNDEKIOSK_ALLOWED_ORIGINS=https://127.0.0.1:8080,https://192.168.14.128:8080
+_allowed_raw = os.environ.get('AUNDEKIOSK_ALLOWED_ORIGINS', 'https://127.0.0.1:8080')
+ALLOWED_ORIGINS: frozenset = frozenset(o.strip() for o in _allowed_raw.split(',') if o.strip())
+
 
 def ws_handshake(sock):
     raw = b''
@@ -27,6 +35,14 @@ def ws_handshake(sock):
         if ':' in line:
             k, v = line.split(':', 1)
             headers[k.strip().lower()] = v.strip()
+    # Block browser-origin connections not in the allowlist.
+    # Connections with no Origin or Origin "null" are server-to-server
+    # (e.g. the dashboard proxy) and are allowed through.
+    origin = headers.get('origin')
+    if origin is not None and origin != 'null' and origin not in ALLOWED_ORIGINS:
+        sock.sendall(b'HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n')
+        sock.close()
+        return False
     key = headers.get('sec-websocket-key', '')
     accept = base64.b64encode(
         hashlib.sha1(key.strip().encode() + WS_GUID).digest()

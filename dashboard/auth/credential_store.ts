@@ -159,6 +159,12 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     if (index === -1) {
       throw new Error(`User '${username}' does not exist.`);
     }
+    if (role === "viewer" && file.users[index].role === "admin") {
+      const otherAdmins = file.users.filter((u) => u.username !== username && u.role === "admin");
+      if (otherAdmins.length === 0) {
+        throw new Error("Cannot demote the last admin — it would lock everyone out.");
+      }
+    }
     file.users[index] = { ...file.users[index], role };
     await write(file);
   }
@@ -168,11 +174,17 @@ export function createCredentialStore(opts: CredentialStoreOptions) {
     if (file.users.length <= 1) {
       throw new Error("Cannot delete the last remaining user — it would lock everyone out.");
     }
-    const next = file.users.filter((u) => u.username !== username);
-    if (next.length === file.users.length) {
+    const target = file.users.find((u) => u.username === username);
+    if (!target) {
       throw new Error(`User '${username}' does not exist.`);
     }
-    await write({ users: next });
+    if (target.role === "admin") {
+      const adminCount = file.users.filter((u) => u.role === "admin").length;
+      if (adminCount <= 1) {
+        throw new Error("Cannot delete the last admin — it would lock everyone out.");
+      }
+    }
+    await write({ users: file.users.filter((u) => u.username !== username) });
   }
 
   async function resetPasswordLocked(username: string, newPassword: string): Promise<void> {

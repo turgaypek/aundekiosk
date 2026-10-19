@@ -7,6 +7,9 @@ Type=simple
 ExecStart=/usr/bin/python3 /opt/aundekiosk/dashboard/pty_ws_server.py
 User=root
 Restart=on-failure
+# Add the Pi's LAN address so the dashboard terminal works from the network.
+# Replace 192.168.x.x with the actual Pi IP (or use a comma-separated list).
+Environment=AUNDEKIOSK_ALLOWED_ORIGINS=https://127.0.0.1:8080,https://{{PI_IP}}:8080
 
 [Install]
 WantedBy=multi-user.target

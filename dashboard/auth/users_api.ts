@@ -58,7 +58,7 @@ export function createUsersApi(opts: UsersApiOptions) {
     if (role !== undefined && role !== "admin" && role !== "viewer") {
       return new Response("role must be 'admin' or 'viewer'.", { status: 400 });
     }
-    const userRole: "admin" | "viewer" = (role as "admin" | "viewer") ?? "admin";
+    const userRole: "admin" | "viewer" = (role as "admin" | "viewer") ?? "viewer";
 
     try {
       await credentialStore.createUser(newUsername.trim(), password, (email as string | null) ?? null, userRole);

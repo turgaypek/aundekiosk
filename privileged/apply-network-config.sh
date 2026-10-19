@@ -51,6 +51,7 @@ fi
 
 if [[ "$INTERFACE" == "wlan0" ]]; then
   is_valid_wifi_ssid "$WIFI_SSID" || { echo "Invalid WiFi SSID." >&2; exit 1; }
+  is_safe_secret_value "$WIFI_SSID" || { echo "WiFi SSID must not contain a newline." >&2; exit 1; }
   is_valid_wifi_password "$WIFI_PASSWORD" || { echo "Invalid WiFi password (must be 8-63 characters)." >&2; exit 1; }
   is_safe_secret_value "$WIFI_PASSWORD" || { echo "WiFi password must not contain a newline." >&2; exit 1; }
 fi

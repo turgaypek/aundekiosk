@@ -48,6 +48,12 @@ fi
 # I2 — a bad new SSID/PSK needs to be rolled back, not just the IPv4
 # fields), over nmcli's own stdin, never as a command-line argument.
 if [[ "$INTERFACE" == "wlan0" && -n "$WIFI_SSID" ]]; then
+  is_safe_secret_value "$WIFI_SSID" || {
+    echo "Backup SSID contains an unsafe character; skipping WiFi SSID/PSK rollback." >&2
+    WIFI_SSID=""
+  }
+fi
+if [[ "$INTERFACE" == "wlan0" && -n "$WIFI_SSID" ]]; then
   nmcli connection edit "$CONNECTION_ID" <<NMCLI_EDIT
 set wifi-sec.key-mgmt wpa-psk
 set wifi-sec.psk $WIFI_PASSWORD
