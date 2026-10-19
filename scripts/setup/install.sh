@@ -131,9 +131,6 @@ else
     msg "$INFO" "wayvnc not currently active; it will pick up the new config on next start."
 fi
 
-msg "$INFO" "Installing the TTY service (browser terminal access via ttyd)..."
-cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-tty.service.template" /etc/systemd/system/aundekiosk-tty.service
-
 msg "$INFO" "Creating dedicated 'aundekiosk' system user for the dashboard..."
 if ! id -u aundekiosk >/dev/null 2>&1; then
     useradd --system --no-create-home --shell /usr/sbin/nologin aundekiosk
@@ -275,6 +272,7 @@ sed -e "s|PI_HOME|$PI_HOME|g" -e "s|PI_SUID|$PI_SUID|g" -e "s|PI_USER|$PI_USER|g
 cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-dashboard.service.template" /etc/systemd/system/aundekiosk-dashboard.service
 cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-monitor.service.template" /etc/systemd/system/aundekiosk-monitor.service
 cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-recovery.service.template" /etc/systemd/system/aundekiosk-recovery.service
+cp "$AUNDEKIOSK_INSTALL_DIR/services/aundekiosk-tty.service.template" /etc/systemd/system/aundekiosk-tty.service
 
 msg "$INFO" "Reloading systemd and enabling services..."
 systemctl daemon-reload
