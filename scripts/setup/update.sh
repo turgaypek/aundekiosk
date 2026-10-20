@@ -46,6 +46,10 @@ git config --global --add safe.directory "$AUNDEKIOSK_INSTALL_DIR"
 # real `git pull` on the deployed Pi).
 git -C "$AUNDEKIOSK_INSTALL_DIR" config core.fileMode false
 
+# Stash any local modifications (mode-bit flips from install.sh, deploy-time
+# file edits, untracked files added at runtime) so git pull can fast-forward.
+git -C "$AUNDEKIOSK_INSTALL_DIR" stash -u 2>/dev/null || true
+
 msg "$INFO" "Pulling the latest AundeKiosk commits..."
 git -C "$AUNDEKIOSK_INSTALL_DIR" pull --ff-only
 
