@@ -46,6 +46,9 @@ case "$1" in
         # so the first --update on any installation can reach git pull.
         git config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
         git -C "$INSTALL_DIR" config core.fileMode false 2>/dev/null || true
+        # Stash any local modifications (mode-bit flips from install.sh, temp files,
+        # deploy-time edits) so git pull can fast-forward cleanly.
+        git -C "$INSTALL_DIR" stash -u 2>/dev/null || true
         exec bash "$INSTALL_DIR/scripts/setup/update.sh"
         ;;
     --uninstall)

@@ -133,7 +133,12 @@ fi
 
 msg "$INFO" "Creating dedicated 'aundekiosk' system user for the dashboard..."
 if ! id -u aundekiosk >/dev/null 2>&1; then
-    useradd --system --no-create-home --shell /usr/sbin/nologin aundekiosk
+    # Group may already exist from a previous partial install; pass --gid if so.
+    if getent group aundekiosk >/dev/null 2>&1; then
+        useradd --system --no-create-home --shell /usr/sbin/nologin --gid aundekiosk aundekiosk
+    else
+        useradd --system --no-create-home --shell /usr/sbin/nologin aundekiosk
+    fi
 fi
 
 msg "$INFO" "Adding $PI_USER to the 'aundekiosk' group (switcher runs as $PI_USER and needs to read/delete state files written by the dashboard)..."
