@@ -37,6 +37,15 @@ case "$1" in
         exec bash "$INSTALL_DIR/scripts/setup/install.sh"
         ;;
     --update)
+        if [ ! -d "$INSTALL_DIR/.git" ]; then
+            echo "AundeKiosk is not installed at $INSTALL_DIR — run --install first." >&2
+            exit 1
+        fi
+        # Older installations may not have the safe.directory fix in their local
+        # update.sh yet; set it here in bootstrap (which is always downloaded fresh)
+        # so the first --update on any installation can reach git pull.
+        git config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
+        git -C "$INSTALL_DIR" config core.fileMode false 2>/dev/null || true
         exec bash "$INSTALL_DIR/scripts/setup/update.sh"
         ;;
     --uninstall)
