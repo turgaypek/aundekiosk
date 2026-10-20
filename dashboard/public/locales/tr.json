@@ -155,5 +155,13 @@
   "app_update_button": "AundeKiosk'u Güncelle",
   "app_update_state_idle": "Güncel",
   "app_update_state_updating": "Güncelleniyor…",
-  "app_update_reconnecting": "Dashboard yeniden başlatılıyor, lütfen bekleyin…"
+  "app_update_reconnecting": "Dashboard yeniden başlatılıyor, lütfen bekleyin…",
+  "videos_heading": "Videolar",
+  "videos_upload_button": "Yükle",
+  "videos_stop_button": "Oynatmayı Durdur",
+  "videos_add_rotation_button": "+ Döngüye Ekle",
+  "videos_play_button": "Oynat (Sürekli)",
+  "videos_delete_confirm": "\"{{filename}}\" silinsin mi?",
+  "videos_upload_success": "Video yüklendi.",
+  "videos_upload_failed": "Yükleme başarısız."
 }

@@ -102,6 +102,28 @@
           </div>
         </div>
 
+        <div id="videos" class="card mb-4" data-admin-only>
+          <div class="card-header">
+            <h2 class="h5 my-0" data-i18n="videos_heading">Videos</h2>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <input id="video-file-input" type="file" accept=".mp4,video/mp4" class="form-control" style="max-width: 320px" />
+                <button id="video-upload-button" type="button" class="btn btn-secondary" data-i18n="videos_upload_button">Upload</button>
+                <button id="video-stop-button" type="button" class="btn btn-warning" data-i18n="videos_stop_button" hidden>Stop Playback</button>
+              </div>
+              <div id="video-upload-progress-wrap" class="mt-1" hidden>
+                <div class="progress" style="height: 6px;">
+                  <div id="video-upload-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:0%"></div>
+                </div>
+              </div>
+              <div id="video-upload-status" class="text-body-secondary small mt-1"></div>
+            </div>
+            <ul class="list-group list-group-flush" id="videos-list"></ul>
+          </div>
+        </div>
+
         <div id="services" class="card mb-4" data-admin-only>
           <div class="card-header">
             <h2 class="h5 my-0" data-i18n="services_heading">Services</h2>
@@ -347,6 +369,25 @@
         <a target="_blank" rel="noopener" class="me-auto"></a>
         <input type="number" class="form-control aundekiosk-num-input url-duration" min="1" max="300" data-i18n-placeholder="url_duration_placeholder" />
         <button type="button" class="btn btn-sm btn-outline-danger remove-url" data-i18n="remove_button">Remove</button>
+      </li>
+    </template>
+
+    <template id="template-video-item">
+      <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2" draggable="true">
+        <span class="drag-handle text-muted me-1" title="Sürükle / Drag">⠿</span>
+        <span class="me-auto">&#127916; <span class="video-item-filename text-body-secondary"></span></span>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-url" data-i18n="remove_button">Remove</button>
+      </li>
+    </template>
+
+    <template id="template-video">
+      <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <span class="video-filename me-auto text-break">&#127916; </span>
+        <span class="d-flex gap-2 flex-shrink-0">
+          <button type="button" class="btn btn-sm btn-outline-secondary video-add-rotation" data-i18n="videos_add_rotation_button">+ Add to Rotation</button>
+          <button type="button" class="btn btn-sm btn-success video-play" data-i18n="videos_play_button">Play (Loop)</button>
+          <button type="button" class="btn btn-sm btn-outline-danger video-delete" data-i18n="remove_button">Remove</button>
+        </span>
       </li>
     </template>
 

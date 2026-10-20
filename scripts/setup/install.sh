@@ -136,6 +136,9 @@ if ! id -u aundekiosk >/dev/null 2>&1; then
     useradd --system --no-create-home --shell /usr/sbin/nologin aundekiosk
 fi
 
+msg "$INFO" "Adding $PI_USER to the 'aundekiosk' group (switcher runs as $PI_USER and needs to read/delete state files written by the dashboard)..."
+usermod -a -G aundekiosk "$PI_USER"
+
 msg "$INFO" "Making runtime and privileged scripts executable..."
 chmod +x "$AUNDEKIOSK_INSTALL_DIR"/runtime/*.sh "$AUNDEKIOSK_INSTALL_DIR"/runtime/*.py "$AUNDEKIOSK_INSTALL_DIR"/privileged/*.sh "$AUNDEKIOSK_INSTALL_DIR"/monitor/*.sh
 
@@ -172,6 +175,14 @@ msg "$INFO" "Pre-caching the dashboard's Deno dependencies (so the service never
 DENO_DIR="$AUNDEKIOSK_INSTALL_DIR/.deno" /usr/local/bin/deno cache \
     --lock="$AUNDEKIOSK_INSTALL_DIR/dashboard/deno.lock" \
     "$AUNDEKIOSK_INSTALL_DIR/dashboard/server.ts"
+
+msg "$INFO" "Creating video storage and runtime state directories..."
+mkdir -p "$AUNDEKIOSK_INSTALL_DIR/videos"
+mkdir -p "$AUNDEKIOSK_INSTALL_DIR/state"
+# State dir must be writable by both aundekiosk (dashboard writes video-done)
+# and PI_USER (switcher reads and deletes video-done). PI_USER is in the
+# aundekiosk group (added above), so 0770 gives both parties full access.
+chmod 0770 "$AUNDEKIOSK_INSTALL_DIR/state"
 
 msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it can write config.json; root reclaims 'privileged' and 'recovery' so a dashboard-level bug can never rewrite a script sudo/root will run)..."
 chown -R aundekiosk:aundekiosk "$AUNDEKIOSK_INSTALL_DIR"

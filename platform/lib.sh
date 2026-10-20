@@ -90,11 +90,6 @@ url_count_in_config() {
   jq -r '.urls | length' "$config_file" | tr -d '\r'
 }
 
-has_urls() {
-  local config_file="$1"
-  [[ "$(url_count_in_config "$config_file")" -gt 0 ]]
-}
-
 # Read straight from the file on every call, never from a cached array —
 # switcher.sh calls these once per loop iteration so a dashboard edit
 # (new duration, new cycle target, a changed URL) takes effect on the
@@ -151,6 +146,45 @@ tab_snapshot() {
     | join("\u001f")
   ' "$config_file" | tr -d '\r'
   echo
+}
+
+# Like tab_snapshot but handles video items as well as URL items.
+# Returns: count \x1f type \x1f url \x1f duration \x1f cycles \x1f filename
+# type is "url" or "video".  For URL items, filename is "".
+# For video items, url/duration/cycles are ""/0/0.
+# Out-of-range index: type="url", url="", duration=0, cycles=0, filename="".
+item_snapshot() {
+  local config_file="$1"
+  local index="$2"
+  jq -j --argjson idx "$index" '
+    (.urls | length) as $n
+    | if $idx < $n then
+        (.urls[$idx]) as $e
+        | if $e.type == "video" then
+            [$n, "video", "", "0", "0", $e.filename]
+          else
+            [$n, "url", $e.url, ($e.duration | tostring), ($e.cycles | tostring), ""]
+          end
+      else
+        [$n, "url", "", "0", "0", ""]
+      end
+    | join("\u001f")
+  ' "$config_file" | tr -d '\r'
+  echo
+}
+
+# Returns the first URL-type item's url (skips video items).
+first_url_in_config() {
+  local config_file="$1"
+  jq -r '[.urls[] | select(.type != "video")] | .[0].url' "$config_file" | tr -d '\r'
+}
+
+# True if config has at least one URL-type item.
+has_urls() {
+  local config_file="$1"
+  local count
+  count=$(jq -r '[.urls[] | select(.type != "video")] | length' "$config_file" | tr -d '\r')
+  [[ "$count" -gt 0 ]]
 }
 
 should_refresh() {
