@@ -17,6 +17,10 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Systemd transient units don't set $HOME; git config --global needs it
+# to locate ~/.gitconfig. Root's home is always /root.
+export HOME="${HOME:-/root}"
+
 if [ ! -d "$AUNDEKIOSK_INSTALL_DIR/.git" ]; then
     msg "$ERROR" "$AUNDEKIOSK_INSTALL_DIR is not a git checkout; nothing to pull. Was AundeKiosk installed by cloning the repo directly into that path?"
     exit 1
