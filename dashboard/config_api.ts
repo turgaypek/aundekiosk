@@ -4,6 +4,13 @@ interface KioskUrlEntry {
   cycles: number;
 }
 
+interface KioskVideoEntry {
+  type: "video";
+  filename: string;
+}
+
+type PlaylistItem = KioskUrlEntry | KioskVideoEntry;
+
 // Only http/https parse successfully here with an allowed protocol, so this
 // also rejects "javascript:", "file:", and anything with a syntax error —
 // including a value like "https://ok.test --proxy-server=evil.test:8080",
@@ -17,26 +24,41 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
-function isValidConfigShape(value: unknown): value is { urls: KioskUrlEntry[] } {
+// Only [A-Za-z0-9._- ] with a .mp4 extension — same rule as play-video.sh.
+const VALID_VIDEO_FILENAME = /^[A-Za-z0-9._\- ]+\.mp4$/i;
+
+function isValidPlaylistItem(entry: unknown): entry is PlaylistItem {
+  if (typeof entry !== "object" || entry === null) return false;
+  const e = entry as Record<string, unknown>;
+  if (e.type === "video") {
+    return typeof e.filename === "string" && VALID_VIDEO_FILENAME.test(e.filename);
+  }
+  // URL item (type absent or "url")
+  return (
+    typeof e.url === "string" &&
+    isValidHttpUrl(e.url.trim()) &&
+    typeof e.duration === "number" &&
+    Number.isInteger(e.duration) &&
+    e.duration >= 1 &&
+    e.duration <= 300 &&
+    typeof e.cycles === "number" &&
+    Number.isInteger(e.cycles) &&
+    e.cycles >= 0 &&
+    e.cycles <= 100
+  );
+}
+
+function isValidConfigShape(value: unknown): value is { urls: PlaylistItem[] } {
   if (typeof value !== "object" || value === null) return false;
   const obj = value as Record<string, unknown>;
   if (!Array.isArray(obj.urls)) return false;
-  return obj.urls.every((entry) => {
-    if (typeof entry !== "object" || entry === null) return false;
-    const e = entry as Record<string, unknown>;
-    return (
-      typeof e.url === "string" &&
-      isValidHttpUrl(e.url.trim()) &&
-      typeof e.duration === "number" &&
-      Number.isInteger(e.duration) &&
-      e.duration >= 1 &&
-      e.duration <= 300 &&
-      typeof e.cycles === "number" &&
-      Number.isInteger(e.cycles) &&
-      e.cycles >= 0 &&
-      e.cycles <= 100
-    );
+  // At least one URL item must exist so runner.sh always has a start URL.
+  const hasUrl = obj.urls.some((e) => {
+    if (typeof e !== "object" || e === null) return false;
+    return (e as Record<string, unknown>).type !== "video";
   });
+  if (!hasUrl && obj.urls.length > 0) return false;
+  return obj.urls.every(isValidPlaylistItem);
 }
 
 export interface ConfigApiOptions {
@@ -77,19 +99,22 @@ export function createConfigApi(opts: ConfigApiOptions) {
 
     if (!isValidConfigShape(parsed)) {
       return new Response(
-        "Invalid config shape: expected { urls: [{ url (http/https), duration (1-300), cycles (0-100) }] }.",
+        "Invalid config shape: expected { urls: [ {url, duration, cycles} | {type:\"video\", filename} ] } with at least one URL item.",
         { status: 400 },
       );
     }
 
-    // Drop any unexpected extra fields and trim whitespace around each URL,
-    // so only the known, validated shape ever reaches disk.
+    // Drop any unexpected extra fields so only the known, validated shape
+    // ever reaches disk.  Video items keep type+filename; URL items keep
+    // url (trimmed) + duration + cycles.
     const normalized = {
-      urls: parsed.urls.map((entry) => ({
-        url: entry.url.trim(),
-        duration: entry.duration,
-        cycles: entry.cycles,
-      })),
+      urls: parsed.urls.map((entry) => {
+        if ("type" in entry && entry.type === "video") {
+          return { type: "video" as const, filename: (entry as KioskVideoEntry).filename };
+        }
+        const u = entry as KioskUrlEntry;
+        return { url: u.url.trim(), duration: u.duration, cycles: u.cycles };
+      }),
     };
 
     // Write-then-rename so a power loss or crash mid-write can never leave

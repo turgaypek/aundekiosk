@@ -155,5 +155,13 @@
   "app_update_button": "Update AundeKiosk",
   "app_update_state_idle": "Up to date",
   "app_update_state_updating": "Updating…",
-  "app_update_reconnecting": "Dashboard restarting, please wait…"
+  "app_update_reconnecting": "Dashboard restarting, please wait…",
+  "videos_heading": "Videos",
+  "videos_upload_button": "Upload",
+  "videos_stop_button": "Stop Playback",
+  "videos_add_rotation_button": "+ Add to Rotation",
+  "videos_play_button": "Play (Loop)",
+  "videos_delete_confirm": "Delete \"{{filename}}\"?",
+  "videos_upload_success": "Video uploaded.",
+  "videos_upload_failed": "Upload failed."
 }

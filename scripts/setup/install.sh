@@ -173,6 +173,10 @@ DENO_DIR="$AUNDEKIOSK_INSTALL_DIR/.deno" /usr/local/bin/deno cache \
     --lock="$AUNDEKIOSK_INSTALL_DIR/dashboard/deno.lock" \
     "$AUNDEKIOSK_INSTALL_DIR/dashboard/server.ts"
 
+msg "$INFO" "Creating video storage and runtime state directories..."
+mkdir -p "$AUNDEKIOSK_INSTALL_DIR/videos"
+mkdir -p "$AUNDEKIOSK_INSTALL_DIR/state"
+
 msg "$INFO" "Setting directory ownership (aundekiosk owns the install tree so it can write config.json; root reclaims 'privileged' and 'recovery' so a dashboard-level bug can never rewrite a script sudo/root will run)..."
 chown -R aundekiosk:aundekiosk "$AUNDEKIOSK_INSTALL_DIR"
 chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/privileged"

@@ -25,6 +25,7 @@ import { createRebootScheduleApi } from "./reboot_schedule_api.ts";
 import { createNoVncProxy } from "./novnc_proxy.ts";
 import { createTtyProxy } from "./tty_proxy.ts";
 import { TERMINAL_HTML } from "./terminal_page.ts";
+import { createVideoApi } from "./video_api.ts";
 
 // import.meta.dirname (not new URL(...).pathname) because on Windows a
 // file:// URL's pathname keeps a leading slash before the drive letter
@@ -93,6 +94,10 @@ export function createHandler(options: HandlerOptions = {}) {
     },
   });
   const monitorConfigApi = createMonitorConfigApi({ configPath: monitorConfigPath, samplePath: monitorSamplePath });
+  const videoApi = createVideoApi({
+    videosDir: "/opt/aundekiosk/videos",
+    stateDir: "/opt/aundekiosk/state",
+  });
   const authApi = createAuthApi({
     credentialStore: createCredentialStore({ storePath: authStorePath }),
     sessionStore: createSessionStore({ idleTimeoutMs: IDLE_TIMEOUT_MS }),
@@ -288,6 +293,12 @@ export function createHandler(options: HandlerOptions = {}) {
       return authApi.handleLogout(req, ip);
     }
 
+    // Video player signals — called from the player page itself, which has no
+    // session cookie.  Must come before auth checks.
+    if (url.pathname === "/video-done" && req.method === "POST") {
+      return videoApi.handleDone();
+    }
+
     if (url.pathname === "/api/update" && req.method === "POST") {
       const session = requireAdmin(req);
       if (session instanceof Response) return session;
@@ -424,6 +435,38 @@ export function createHandler(options: HandlerOptions = {}) {
       const session = requireAdmin(req);
       if (session instanceof Response) return session;
       return usersApi.handleUpdateRole(req, session.username, ip);
+    }
+
+    // Video management — admin only
+    if (url.pathname === "/videos" && req.method === "GET") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return videoApi.handleList();
+    }
+    if (url.pathname === "/upload-video" && req.method === "POST") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return videoApi.handleUpload(req);
+    }
+    if (url.pathname.startsWith("/video/") && req.method === "GET") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return videoApi.handleServe(req, decodeURIComponent(url.pathname.slice(7)));
+    }
+    if (url.pathname === "/delete-video" && req.method === "POST") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return videoApi.handleDelete(req);
+    }
+    if (url.pathname === "/play-video" && req.method === "POST") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return videoApi.handlePlay(req);
+    }
+    if (url.pathname === "/stop-video" && req.method === "POST") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return videoApi.handleStop();
     }
 
     if (url.pathname === "/apt-upgrade/start" && req.method === "POST") {

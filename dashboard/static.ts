@@ -3,6 +3,7 @@ const CONTENT_TYPES: Record<string, string> = {
   ".js": "application/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".mp4": "video/mp4",
 };
 
 function contentTypeFor(path: string): string {

@@ -48,6 +48,44 @@ function renderUrlRow(entry) {
   return row;
 }
 
+function renderVideoItemRow(entry) {
+  const template = document.getElementById("template-video-item");
+  const row = template.content.firstElementChild.cloneNode(true);
+  row.dataset.type = "video";
+  row.dataset.filename = entry.filename;
+  row.querySelector(".video-item-filename").textContent = entry.filename;
+  window.aundekiosk?.translateSubtree?.(row);
+  row.querySelector(".remove-url").addEventListener("click", () => row.remove());
+
+  row.addEventListener("dragstart", (e) => {
+    _urlDragSrc = row;
+    e.dataTransfer.effectAllowed = "move";
+    setTimeout(() => row.classList.add("opacity-50"), 0);
+  });
+  row.addEventListener("dragend", () => {
+    row.classList.remove("opacity-50");
+    document.querySelectorAll("#urls ul li.url-drag-over")
+      .forEach((r) => r.classList.remove("url-drag-over"));
+    _urlDragSrc = null;
+  });
+  row.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    if (_urlDragSrc && _urlDragSrc !== row) row.classList.add("url-drag-over");
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("url-drag-over"));
+  row.addEventListener("drop", (e) => {
+    e.preventDefault();
+    row.classList.remove("url-drag-over");
+    if (!_urlDragSrc || _urlDragSrc === row) return;
+    const list = row.parentNode;
+    const srcIdx = [...list.children].indexOf(_urlDragSrc);
+    const dstIdx = [...list.children].indexOf(row);
+    list.insertBefore(_urlDragSrc, srcIdx < dstIdx ? row.nextSibling : row);
+  });
+
+  return row;
+}
+
 async function loadConfig() {
   const list = document.querySelector("#urls ul");
   list.innerHTML = "";
@@ -55,17 +93,26 @@ async function loadConfig() {
   if (!res.ok) return;
   const { urls } = await res.json();
   for (const entry of urls) {
-    list.appendChild(renderUrlRow(entry));
+    if (entry.type === "video") {
+      list.appendChild(renderVideoItemRow(entry));
+    } else {
+      list.appendChild(renderUrlRow(entry));
+    }
   }
 }
 
 async function applyConfig() {
   const list = document.querySelector("#urls ul");
-  const urls = [...list.children].map((row) => ({
-    url: row.querySelector("a").href,
-    duration: Number(row.querySelector(".url-duration").value) || 10,
-    cycles: Number(row.dataset.cycles) || 0,
-  }));
+  const urls = [...list.children].map((row) => {
+    if (row.dataset.type === "video") {
+      return { type: "video", filename: row.dataset.filename };
+    }
+    return {
+      url: row.querySelector("a").href,
+      duration: Number(row.querySelector(".url-duration").value) || 10,
+      cycles: Number(row.dataset.cycles) || 0,
+    };
+  });
   const res = await fetch("/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -655,6 +702,120 @@ async function loadAuditLog() {
   }
 }
 
+// --- Videos ------------------------------------------------------------------
+
+function renderVideoRow(filename) {
+  const template = document.getElementById("template-video");
+  const row = template.content.firstElementChild.cloneNode(true);
+  row.querySelector(".video-filename").textContent = "\u{1F3AC} " + filename;
+  window.aundekiosk?.translateSubtree?.(row);
+  row.querySelector(".video-add-rotation").addEventListener("click", () => {
+    document.querySelector("#urls ul").appendChild(renderVideoItemRow({ filename }));
+  });
+  row.querySelector(".video-play").addEventListener("click", () => playVideo(filename));
+  row.querySelector(".video-delete").addEventListener("click", () => deleteVideo(filename));
+  return row;
+}
+
+async function loadVideos() {
+  const list = document.getElementById("videos-list");
+  if (!list) return;
+  const res = await fetch("/videos");
+  if (!res.ok) return;
+  const files = await res.json(); // array of { name, size, modified }
+  list.innerHTML = "";
+  for (const entry of files) {
+    list.appendChild(renderVideoRow(entry.name));
+  }
+}
+
+async function playVideo(filename) {
+  const res = await fetch("/play-video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename }),
+  });
+  const message = await res.text();
+  if (!res.ok) { alert(message); return; }
+  const stopBtn = document.getElementById("video-stop-button");
+  if (stopBtn) stopBtn.hidden = false;
+}
+
+async function stopVideo() {
+  const res = await fetch("/stop-video", { method: "POST" });
+  const message = await res.text();
+  alert(message);
+  const stopBtn = document.getElementById("video-stop-button");
+  if (stopBtn) stopBtn.hidden = true;
+}
+
+async function deleteVideo(filename) {
+  const confirmText = window.aundekiosk?.t?.("videos_delete_confirm", { filename }) ??
+    `"${filename}" silinsin mi?`;
+  if (!confirm(confirmText)) return;
+  const res = await fetch("/delete-video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename }),
+  });
+  const message = await res.text();
+  alert(message);
+  if (res.ok) await loadVideos();
+}
+
+function uploadVideo() {
+  const input = document.getElementById("video-file-input");
+  const file = input?.files?.[0];
+  if (!file) return;
+
+  const progressWrap = document.getElementById("video-upload-progress-wrap");
+  const progressBar = document.getElementById("video-upload-progress");
+  const statusEl = document.getElementById("video-upload-status");
+  const uploadBtn = document.getElementById("video-upload-button");
+
+  const formData = new FormData();
+  formData.append("video", file);
+
+  if (progressWrap) progressWrap.hidden = false;
+  if (progressBar) { progressBar.style.width = "0%"; progressBar.textContent = ""; }
+  if (statusEl) statusEl.textContent = "";
+  if (uploadBtn) uploadBtn.disabled = true;
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/upload-video");
+
+  xhr.upload.addEventListener("progress", (e) => {
+    if (e.lengthComputable && progressBar) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      progressBar.style.width = pct + "%";
+      progressBar.textContent = pct + "%";
+    }
+  });
+
+  xhr.addEventListener("load", async () => {
+    if (uploadBtn) uploadBtn.disabled = false;
+    if (xhr.status >= 200 && xhr.status < 300) {
+      if (statusEl) statusEl.textContent = xhr.responseText || (window.aundekiosk?.t?.("videos_upload_success") ?? "Uploaded.");
+      if (input) input.value = "";
+      await loadVideos();
+    } else {
+      if (statusEl) statusEl.textContent = xhr.responseText || (window.aundekiosk?.t?.("videos_upload_failed") ?? "Upload failed.");
+    }
+    setTimeout(() => {
+      if (progressWrap) progressWrap.hidden = true;
+      if (progressBar) { progressBar.style.width = "0%"; progressBar.textContent = ""; }
+    }, 3000);
+  });
+
+  xhr.addEventListener("error", () => {
+    if (uploadBtn) uploadBtn.disabled = false;
+    if (statusEl) statusEl.textContent = window.aundekiosk?.t?.("videos_upload_failed") ?? "Upload failed.";
+    if (progressWrap) progressWrap.hidden = true;
+  });
+
+  xhr.send(formData);
+}
+
 if (typeof document !== "undefined") {
   document.getElementById("add-url")?.addEventListener("click", () => {
     const input = document.getElementById("new-url");
@@ -685,6 +846,8 @@ if (typeof document !== "undefined") {
   document.getElementById("add-user-button")?.addEventListener("click", addUser);
   document.getElementById("apt-upgrade-start")?.addEventListener("click", startAptUpgrade);
   document.getElementById("app-update-start")?.addEventListener("click", startAppUpdate);
+  document.getElementById("video-upload-button")?.addEventListener("click", uploadVideo);
+  document.getElementById("video-stop-button")?.addEventListener("click", stopVideo);
 
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.loadConfig = loadConfig;
@@ -695,4 +858,5 @@ if (typeof document !== "undefined") {
   window.aundekiosk.loadUsers = loadUsers;
   window.aundekiosk.loadAuditLog = loadAuditLog;
   window.aundekiosk.loadAptUpgradeStatus = loadAptUpgradeStatus;
+  window.aundekiosk.loadVideos = loadVideos;
 }
