@@ -38,6 +38,7 @@ fi
 # "--" marks the end of Chromium's own switches so the URL can never be
 # parsed as a flag even if it somehow begins with "--".
 exec chromium \
+  --autoplay-policy=no-user-gesture-required \
   --ignore-certificate-errors \
   --disable-background-networking \
   --disable-component-update \

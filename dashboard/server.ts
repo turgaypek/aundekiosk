@@ -298,6 +298,12 @@ export function createHandler(options: HandlerOptions = {}) {
     if (url.pathname === "/video-done" && req.method === "POST") {
       return videoApi.handleDone();
     }
+    // Video file serving — also called from the player page (kiosk Chromium has
+    // no admin session cookie).  Auth not required; handleServe validates the
+    // filename and serves only from the videos directory.
+    if (url.pathname.startsWith("/video/") && req.method === "GET") {
+      return videoApi.handleServe(req, decodeURIComponent(url.pathname.slice(7)));
+    }
 
     if (url.pathname === "/api/update" && req.method === "POST") {
       const session = requireAdmin(req);
@@ -447,11 +453,6 @@ export function createHandler(options: HandlerOptions = {}) {
       const session = requireAdmin(req);
       if (session instanceof Response) return session;
       return videoApi.handleUpload(req);
-    }
-    if (url.pathname.startsWith("/video/") && req.method === "GET") {
-      const session = requireAdmin(req);
-      if (session instanceof Response) return session;
-      return videoApi.handleServe(req, decodeURIComponent(url.pathname.slice(7)));
     }
     if (url.pathname === "/delete-video" && req.method === "POST") {
       const session = requireAdmin(req);

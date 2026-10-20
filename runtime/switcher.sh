@@ -27,7 +27,7 @@ play_video_item() {
   local filename="$1"
   local done_file="$STATE_DIR/video-done"
 
-  rm -f "$done_file"
+  rm -f "$done_file" 2>/dev/null || true
 
   local encoded
   encoded=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$filename")
@@ -37,7 +37,7 @@ play_video_item() {
   local waited=0
   while (( waited < VIDEO_WAIT_MAX )); do
     if [[ -f "$done_file" ]]; then
-      rm -f "$done_file"
+      rm -f "$done_file" 2>/dev/null || true
       echo "Video finished: $filename."
       return
     fi
@@ -45,7 +45,7 @@ play_video_item() {
     (( waited++ )) || true
   done
   echo "Video wait timeout after ${VIDEO_WAIT_MAX}s, continuing." >&2
-  rm -f "$done_file"
+  rm -f "$done_file" 2>/dev/null || true
 }
 
 if ! has_urls "$CONFIG_FILE"; then
