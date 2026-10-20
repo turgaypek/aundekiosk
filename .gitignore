@@ -1,3 +1,14 @@
 .superpowers/
 .devdata/
+
+# Deno dependency cache (install.sh pre-caches these; must not be stashed by git stash -u)
 .deno/
+
+# Runtime-generated files (created by install.sh or the running services; not source code)
+tls/
+config.json
+monitor-config.json
+*.db
+audit.log
+videos/
+state/
