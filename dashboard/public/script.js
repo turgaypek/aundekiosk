@@ -729,6 +729,15 @@ async function loadVideos() {
   }
 }
 
+function showVideoStatus(msg, isError = false) {
+  const el = document.getElementById("video-upload-status");
+  if (!el) return;
+  el.textContent = msg;
+  el.className = isError ? "text-danger small mt-1" : "text-body-secondary small mt-1";
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.textContent = ""; }, 4000);
+}
+
 async function playVideo(filename) {
   const res = await fetch("/play-video", {
     method: "POST",
@@ -736,7 +745,7 @@ async function playVideo(filename) {
     body: JSON.stringify({ filename }),
   });
   const message = await res.text();
-  if (!res.ok) { alert(message); return; }
+  if (!res.ok) { showVideoStatus(message, true); return; }
   const stopBtn = document.getElementById("video-stop-button");
   if (stopBtn) stopBtn.hidden = false;
 }
@@ -744,9 +753,9 @@ async function playVideo(filename) {
 async function stopVideo() {
   const res = await fetch("/stop-video", { method: "POST" });
   const message = await res.text();
-  alert(message);
   const stopBtn = document.getElementById("video-stop-button");
   if (stopBtn) stopBtn.hidden = true;
+  showVideoStatus(message);
 }
 
 async function deleteVideo(filename) {

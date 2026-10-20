@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 INSTALL_DIR="/opt/aundekiosk"
 STATE_DIR="$INSTALL_DIR/state"
@@ -22,7 +23,9 @@ FILENAME=$(cat "$REQUEST_FILE")
 rm -f "$REQUEST_FILE"
 
 # Güvenlik: yalnızca izin verilen karakter seti + .mp4 uzantısı.
-if [[ ! "$FILENAME" =~ ^[A-Za-z0-9._\ -]+\.mp4$ ]]; then
+# (bash [[ =~ ]] boşluğu token olarak ayırır, bu yüzden pattern değişkende.)
+VALID_RE='^[A-Za-z0-9._ -]+[.]mp4$'
+if [[ ! "$FILENAME" =~ $VALID_RE ]]; then
   echo "Invalid filename: $FILENAME" >&2
   exit 1
 fi
