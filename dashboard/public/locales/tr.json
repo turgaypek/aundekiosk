@@ -163,5 +163,17 @@
   "videos_play_button": "Oynat (Sürekli)",
   "videos_delete_confirm": "\"{{filename}}\" silinsin mi?",
   "videos_upload_success": "Video yüklendi.",
-  "videos_upload_failed": "Yükleme başarısız."
+  "videos_upload_failed": "Yükleme başarısız.",
+  "location_placeholder": "Konum / Bölge",
+  "location_save_button": "Kaydet",
+  "location_cancel_button": "İptal",
+  "reboot_button": "⚠ Yeniden Başlat",
+  "reboot_confirm": "Cihazı şimdi yeniden başlatmak istediğinizden emin misiniz?",
+  "device_info_hardware_heading": "Donanım",
+  "device_info_network_heading": "Ağ",
+  "device_info_model_label": "Model",
+  "device_info_ram_label": "RAM",
+  "device_info_kernel_label": "Kernel",
+  "device_info_disk_label": "Disk",
+  "device_info_temp_label": "CPU Sıcaklığı"
 }

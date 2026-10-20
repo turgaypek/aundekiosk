@@ -163,5 +163,17 @@
   "videos_play_button": "Play (Loop)",
   "videos_delete_confirm": "Delete \"{{filename}}\"?",
   "videos_upload_success": "Video uploaded.",
-  "videos_upload_failed": "Upload failed."
+  "videos_upload_failed": "Upload failed.",
+  "location_placeholder": "Location / Region",
+  "location_save_button": "Save",
+  "location_cancel_button": "Cancel",
+  "reboot_button": "⚠ Restart",
+  "reboot_confirm": "Are you sure you want to restart the device now?",
+  "device_info_hardware_heading": "Hardware",
+  "device_info_network_heading": "Network",
+  "device_info_model_label": "Model",
+  "device_info_ram_label": "RAM",
+  "device_info_kernel_label": "Kernel",
+  "device_info_disk_label": "Disk",
+  "device_info_temp_label": "CPU Temperature"
 }

@@ -74,7 +74,18 @@
           <div class="aundekiosk-navbar-brand">
             <img src="assets/aunde-teknik-logo.png" alt="Aunde Teknik" class="aundekiosk-logo" />
           </div>
-          <h1 class="aundekiosk-navbar-title" data-i18n="app_title">Aunde Teknik Kiosk System</h1>
+          <div class="aundekiosk-navbar-title-block">
+            <h1 class="aundekiosk-navbar-title" data-i18n="app_title">Aunde Teknik Kiosk System</h1>
+            <div id="location-display" class="aundekiosk-location-row">
+              <span id="location-text" class="text-body-secondary small"></span>
+              <button id="location-edit-btn" class="btn btn-link btn-sm p-0 ms-1 aundekiosk-location-edit-btn" title="Konumu düzenle" aria-label="Konumu düzenle">✏</button>
+            </div>
+            <div id="location-edit-form" class="aundekiosk-location-edit-row" hidden>
+              <input id="location-input" type="text" class="form-control form-control-sm" maxlength="100" data-i18n-placeholder="location_placeholder" />
+              <button id="location-save-btn" class="btn btn-primary btn-sm" data-i18n="location_save_button">Kaydet</button>
+              <button id="location-cancel-btn" class="btn btn-outline-secondary btn-sm" data-i18n="location_cancel_button">İptal</button>
+            </div>
+          </div>
           <div class="aundekiosk-navbar-controls">
             <span id="live-clock" class="small text-body-secondary"></span>
             <select id="lang-switch" class="form-select form-select-sm w-auto">
@@ -176,6 +187,44 @@
           </div>
         </div>
 
+        <div id="device-info" class="card mb-4">
+          <div class="card-header d-flex align-items-center gap-2">
+            <h2 class="h5 my-0 flex-grow-1" data-i18n="device_info_heading">Cihaz Durumu</h2>
+            <button class="btn btn-link btn-sm p-0 text-body-secondary" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#device-info-body"
+                    aria-expanded="false" aria-controls="device-info-body">
+              ▼
+            </button>
+          </div>
+          <div id="device-info-body" class="collapse show">
+            <div class="card-body">
+              <p id="device-info-loading" class="text-body-secondary small" data-i18n="device_info_loading">Yükleniyor…</p>
+              <div id="device-info-content" hidden>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <h3 class="h6 text-body-secondary text-uppercase small mb-2" data-i18n="device_info_hardware_heading">Donanım</h3>
+                    <table class="table table-sm table-borderless mb-0">
+                      <tbody>
+                        <tr><th class="ps-0 text-body-secondary fw-normal small" data-i18n="device_info_hostname_label">Cihaz Adı</th><td id="di-hostname" class="small"></td></tr>
+                        <tr><th class="ps-0 text-body-secondary fw-normal small" data-i18n="device_info_model_label">Model</th><td id="di-model" class="small"></td></tr>
+                        <tr><th class="ps-0 text-body-secondary fw-normal small" data-i18n="device_info_ram_label">RAM</th><td id="di-ram" class="small"></td></tr>
+                        <tr><th class="ps-0 text-body-secondary fw-normal small" data-i18n="device_info_kernel_label">Kernel</th><td id="di-kernel" class="small"></td></tr>
+                        <tr><th class="ps-0 text-body-secondary fw-normal small" data-i18n="device_info_disk_label">Disk</th><td id="di-disk" class="small"></td></tr>
+                        <tr><th class="ps-0 text-body-secondary fw-normal small" data-i18n="device_info_temp_label">CPU Sıcaklığı</th><td id="di-temp" class="small"></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="col-md-6">
+                    <h3 class="h6 text-body-secondary text-uppercase small mb-2" data-i18n="device_info_network_heading">Ağ</h3>
+                    <div id="di-interfaces"></div>
+                  </div>
+                </div>
+              </div>
+              <p id="device-info-error" class="text-danger small" data-i18n="device_info_unavailable" hidden>Bilgi alınamadı</p>
+            </div>
+          </div>
+        </div>
+
         <div id="remote-access" class="card mb-4" data-admin-only>
           <div class="card-header">
             <h2 class="h5 my-0" data-i18n="remote_access_heading">System / Remote Access</h2>
@@ -184,15 +233,18 @@
             <ul class="list-group list-group-flush mb-4" id="remote-access-list"></ul>
 
             <div class="d-flex flex-wrap gap-2 mb-4">
-              <button type="button" class="btn btn-outline-secondary"
+              <button type="button" class="btn btn-outline-primary"
                       data-i18n="remote_access_open_desktop"
                       onclick="window.open('/novnc/vnc.html?autoconnect=true&amp;path=/novnc-ws', '_blank')">
                 Open Desktop
               </button>
-              <button type="button" class="btn btn-outline-secondary"
+              <button type="button" class="btn btn-outline-primary"
                       data-i18n="remote_access_open_terminal"
                       onclick="window.open('/terminal', '_blank')">
                 Open Terminal
+              </button>
+              <button id="reboot-btn" type="button" class="btn btn-outline-danger ms-auto" data-i18n="reboot_button">
+                ⚠ Yeniden Başlat
               </button>
             </div>
 

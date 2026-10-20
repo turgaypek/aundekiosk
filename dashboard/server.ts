@@ -489,6 +489,18 @@ export function createHandler(options: HandlerOptions = {}) {
       return deviceInfoApi.handleGet();
     }
 
+    if (url.pathname === "/reboot" && req.method === "POST") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      try {
+        await runPrivilegedCommand("sudo", ["/opt/aundekiosk/privileged/reboot-device.sh"]);
+        return new Response("Rebooting...", { status: 200 });
+      } catch (err) {
+        console.error("Reboot failed:", err);
+        return new Response("Reboot failed.", { status: 500 });
+      }
+    }
+
     if (url.pathname === "/reboot-schedule") {
       if (req.method === "GET") {
         if (!authApi.requireSession(req)) return new Response("Unauthorized", { status: 401 });

@@ -163,5 +163,17 @@
   "videos_play_button": "Abspielen (Schleife)",
   "videos_delete_confirm": "\"{{filename}}\" löschen?",
   "videos_upload_success": "Video hochgeladen.",
-  "videos_upload_failed": "Upload fehlgeschlagen."
+  "videos_upload_failed": "Upload fehlgeschlagen.",
+  "location_placeholder": "Standort / Region",
+  "location_save_button": "Speichern",
+  "location_cancel_button": "Abbrechen",
+  "reboot_button": "⚠ Neustart",
+  "reboot_confirm": "Sind Sie sicher, dass Sie das Gerät jetzt neu starten möchten?",
+  "device_info_hardware_heading": "Hardware",
+  "device_info_network_heading": "Netzwerk",
+  "device_info_model_label": "Modell",
+  "device_info_ram_label": "RAM",
+  "device_info_kernel_label": "Kernel",
+  "device_info_disk_label": "Festplatte",
+  "device_info_temp_label": "CPU-Temperatur"
 }

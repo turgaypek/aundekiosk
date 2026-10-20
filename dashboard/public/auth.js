@@ -70,6 +70,9 @@ async function bootstrapAuth() {
     if (state === "app" && window.aundekiosk?.loadVideos) {
       window.aundekiosk.loadVideos();
     }
+    if (state === "app" && window.aundekiosk?.loadDeviceInfo) {
+      window.aundekiosk.loadDeviceInfo();
+    }
   }
 
   const setupForm = document.getElementById("setup-form");

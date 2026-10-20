@@ -86,18 +86,25 @@ function renderVideoItemRow(entry) {
   return row;
 }
 
+let _cachedConfigUrls = [];
+
 async function loadConfig() {
   const list = document.querySelector("#urls ul");
   list.innerHTML = "";
   const res = await fetch("/config");
   if (!res.ok) return;
-  const { urls } = await res.json();
-  for (const entry of urls) {
+  const cfg = await res.json();
+  _cachedConfigUrls = cfg.urls ?? [];
+  for (const entry of _cachedConfigUrls) {
     if (entry.type === "video") {
       list.appendChild(renderVideoItemRow(entry));
     } else {
       list.appendChild(renderUrlRow(entry));
     }
+  }
+  const locationText = document.getElementById("location-text");
+  if (locationText) {
+    locationText.textContent = cfg.location ?? "";
   }
 }
 
@@ -113,14 +120,95 @@ async function applyConfig() {
       cycles: Number(row.dataset.cycles) || 0,
     };
   });
+  const locationText = document.getElementById("location-text");
+  const location = locationText?.textContent?.trim() || undefined;
+  const body = location ? { urls, location } : { urls };
   const res = await fetch("/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ urls }),
+    body: JSON.stringify(body),
   });
   const message = await res.text();
   alert(message);
   if (res.ok) await loadConfig();
+}
+
+async function saveLocation(location) {
+  const body = location
+    ? { urls: _cachedConfigUrls, location }
+    : { urls: _cachedConfigUrls };
+  const res = await fetch("/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.ok;
+}
+
+async function loadDeviceInfo() {
+  const loadingEl = document.getElementById("device-info-loading");
+  const contentEl = document.getElementById("device-info-content");
+  const errorEl = document.getElementById("device-info-error");
+  if (!contentEl) return;
+
+  let data;
+  try {
+    const res = await fetch("/device-info");
+    if (!res.ok) throw new Error("fetch failed");
+    data = await res.json();
+  } catch {
+    if (loadingEl) loadingEl.hidden = true;
+    if (errorEl) errorEl.hidden = false;
+    return;
+  }
+
+  if (loadingEl) loadingEl.hidden = true;
+  contentEl.hidden = false;
+
+  const t = (k) => window.aundekiosk?.t?.(k) ?? k;
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val ?? "—";
+  };
+
+  set("di-hostname", data.hostname);
+  set("di-model", data.piModel);
+  set("di-ram", data.ramMb != null ? `${data.ramMb} MB` : null);
+  set("di-kernel", data.kernel);
+  set("di-disk", data.disk ? `${data.disk.used} / ${data.disk.total} (${data.disk.percent})` : null);
+  set("di-temp", data.cpuTemp != null ? `${data.cpuTemp} °C` : null);
+
+  const ifaceContainer = document.getElementById("di-interfaces");
+  if (ifaceContainer && Array.isArray(data.interfaces)) {
+    ifaceContainer.innerHTML = "";
+    for (const iface of data.interfaces) {
+      const table = document.createElement("table");
+      table.className = "table table-sm table-borderless mb-2";
+      const caption = document.createElement("caption");
+      caption.className = "caption-top text-body-secondary fw-semibold small pb-0";
+      caption.textContent = iface.name;
+      table.appendChild(caption);
+      const tbody = document.createElement("tbody");
+      const modeLabel = iface.mode === "static" ? t("device_info_mode_static")
+        : iface.mode === "dhcp" ? t("device_info_mode_dhcp")
+        : t("device_info_mode_unknown");
+      const rows = [
+        [t("device_info_address_label"), iface.address ? `${iface.address}/${iface.prefix}` : null],
+        ["Mode", modeLabel],
+        [t("device_info_gateway_label"), iface.gateway],
+        [t("device_info_dns_label"), iface.dns?.join(", ")],
+      ];
+      for (const [label, value] of rows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<th class="ps-0 text-body-secondary fw-normal small" style="width:6rem">${label}</th>
+          <td class="small">${value ?? "—"}</td>`;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      ifaceContainer.appendChild(table);
+    }
+  }
 }
 
 // AundeKiosk's own 4 systemd units — start/stop goes through
@@ -858,6 +946,47 @@ if (typeof document !== "undefined") {
   document.getElementById("video-upload-button")?.addEventListener("click", uploadVideo);
   document.getElementById("video-stop-button")?.addEventListener("click", stopVideo);
 
+  // Location inline edit
+  document.getElementById("location-edit-btn")?.addEventListener("click", () => {
+    const display = document.getElementById("location-display");
+    const form = document.getElementById("location-edit-form");
+    const input = document.getElementById("location-input");
+    const currentText = document.getElementById("location-text")?.textContent ?? "";
+    if (input) input.value = currentText;
+    const placeholder = window.aundekiosk?.t?.("location_placeholder") ?? "Konum / Bölge";
+    if (input) input.placeholder = placeholder;
+    if (display) display.hidden = true;
+    if (form) form.hidden = false;
+    input?.focus();
+  });
+
+  document.getElementById("location-cancel-btn")?.addEventListener("click", () => {
+    document.getElementById("location-display").hidden = false;
+    document.getElementById("location-edit-form").hidden = true;
+  });
+
+  document.getElementById("location-save-btn")?.addEventListener("click", async () => {
+    const input = document.getElementById("location-input");
+    const newLocation = input?.value.trim() ?? "";
+    const ok = await saveLocation(newLocation || undefined);
+    if (ok) {
+      const locationText = document.getElementById("location-text");
+      if (locationText) locationText.textContent = newLocation;
+      document.getElementById("location-display").hidden = false;
+      document.getElementById("location-edit-form").hidden = true;
+    }
+  });
+
+  // Reboot button
+  document.getElementById("reboot-btn")?.addEventListener("click", async () => {
+    const msg = window.aundekiosk?.t?.("reboot_confirm") ?? "Cihazı şimdi yeniden başlatmak istediğinizden emin misiniz?";
+    if (!confirm(msg)) return;
+    const res = await fetch("/reboot", { method: "POST" });
+    if (!res.ok) {
+      alert(await res.text());
+    }
+  });
+
   window.aundekiosk = window.aundekiosk || {};
   window.aundekiosk.loadConfig = loadConfig;
   window.aundekiosk.loadServiceStatus = loadServiceStatus;
@@ -868,4 +997,5 @@ if (typeof document !== "undefined") {
   window.aundekiosk.loadAuditLog = loadAuditLog;
   window.aundekiosk.loadAptUpgradeStatus = loadAptUpgradeStatus;
   window.aundekiosk.loadVideos = loadVideos;
+  window.aundekiosk.loadDeviceInfo = loadDeviceInfo;
 }

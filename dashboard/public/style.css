@@ -55,16 +55,49 @@ body {
   align-items: center;
 }
 
-.aundekiosk-navbar-title {
+.aundekiosk-navbar-title-block {
   flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.aundekiosk-navbar-title {
   margin: 0;
   text-align: center;
-  /* Sized against the logo's own "AUNDE TEKNİK" wordmark (measured at
-     ~21% of the logo image's height) so the two don't visually compete —
-     the bare Bootstrap heading classes (h4 etc.) ran noticeably smaller
-     than the logo's own lettering once the logo was enlarged. */
   font-size: clamp(1rem, 1.1vw + 0.85rem, 1.5rem);
   font-weight: 600;
+}
+
+.aundekiosk-location-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 1.4em;
+}
+
+.aundekiosk-location-edit-btn {
+  font-size: 0.75rem;
+  opacity: 0.55;
+  line-height: 1;
+  color: inherit;
+  text-decoration: none;
+}
+
+.aundekiosk-location-edit-btn:hover {
+  opacity: 1;
+}
+
+.aundekiosk-location-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.aundekiosk-location-edit-row input {
+  width: 14rem;
+  max-width: 90vw;
 }
 
 .aundekiosk-navbar-controls {

@@ -48,7 +48,7 @@ function isValidPlaylistItem(entry: unknown): entry is PlaylistItem {
   );
 }
 
-function isValidConfigShape(value: unknown): value is { urls: PlaylistItem[] } {
+function isValidConfigShape(value: unknown): value is { urls: PlaylistItem[]; location?: string } {
   if (typeof value !== "object" || value === null) return false;
   const obj = value as Record<string, unknown>;
   if (!Array.isArray(obj.urls)) return false;
@@ -58,7 +58,11 @@ function isValidConfigShape(value: unknown): value is { urls: PlaylistItem[] } {
     return (e as Record<string, unknown>).type !== "video";
   });
   if (!hasUrl && obj.urls.length > 0) return false;
-  return obj.urls.every(isValidPlaylistItem);
+  if (!obj.urls.every(isValidPlaylistItem)) return false;
+  if (obj.location !== undefined) {
+    if (typeof obj.location !== "string" || obj.location.length > 100) return false;
+  }
+  return true;
 }
 
 export interface ConfigApiOptions {
@@ -106,8 +110,8 @@ export function createConfigApi(opts: ConfigApiOptions) {
 
     // Drop any unexpected extra fields so only the known, validated shape
     // ever reaches disk.  Video items keep type+filename; URL items keep
-    // url (trimmed) + duration + cycles.
-    const normalized = {
+    // url (trimmed) + duration + cycles.  location is optional free text.
+    const normalized: { urls: PlaylistItem[]; location?: string } = {
       urls: parsed.urls.map((entry) => {
         if ("type" in entry && entry.type === "video") {
           return { type: "video" as const, filename: (entry as KioskVideoEntry).filename };
@@ -116,6 +120,9 @@ export function createConfigApi(opts: ConfigApiOptions) {
         return { url: u.url.trim(), duration: u.duration, cycles: u.cycles };
       }),
     };
+    if (typeof parsed.location === "string" && parsed.location.trim().length > 0) {
+      normalized.location = parsed.location.trim();
+    }
 
     // Write-then-rename so a power loss or crash mid-write can never leave
     // config.json truncated or empty — the rename is atomic on the same
