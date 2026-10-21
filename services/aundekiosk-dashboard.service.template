@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/deno run --cached-only --lock=/opt/aundekiosk/dashboard/deno.lock --allow-net=0.0.0.0:8080,127.0.0.1:5900,127.0.0.1:7681 --allow-read=/opt/aundekiosk,/var/run/reboot-required,/etc/dhcpcd.conf,/etc/resolv.conf,/etc/systemd/system/aundekiosk-reboot.timer,/usr/share/novnc --allow-write=/opt/aundekiosk --allow-run=sudo,systemctl,hostname,ip --allow-env=PORT,AUNDEKIOSK_CONFIG_FILE,AUNDEKIOSK_AUTH_STORE_FILE,AUNDEKIOSK_AUDIT_LOG_FILE,AUNDEKIOSK_TLS_CERT,AUNDEKIOSK_TLS_KEY,AUNDEKIOSK_ALLOW_HTTP,AUNDEKIOSK_MONITOR_CONFIG_FILE,AUNDEKIOSK_APT_UPGRADE_LOG_FILE,AUNDEKIOSK_REBOOT_REQUIRED_FILE /opt/aundekiosk/dashboard/server.ts
+ExecStart=/usr/local/bin/deno run --cached-only --lock=/opt/aundekiosk/dashboard/deno.lock --allow-net=0.0.0.0:8080,127.0.0.1:5900,127.0.0.1:7681 --allow-read=/opt/aundekiosk,/var/run/reboot-required,/etc/dhcpcd.conf,/etc/resolv.conf,/etc/systemd/system/aundekiosk-reboot.timer,/usr/share/novnc,/proc/device-tree,/sys/firmware/devicetree,/proc/meminfo,/proc/cpuinfo,/sys/class/thermal --allow-write=/opt/aundekiosk --allow-run=sudo,systemctl,hostname,ip,uname,df --allow-env=PORT,AUNDEKIOSK_CONFIG_FILE,AUNDEKIOSK_AUTH_STORE_FILE,AUNDEKIOSK_AUDIT_LOG_FILE,AUNDEKIOSK_TLS_CERT,AUNDEKIOSK_TLS_KEY,AUNDEKIOSK_ALLOW_HTTP,AUNDEKIOSK_MONITOR_CONFIG_FILE,AUNDEKIOSK_APT_UPGRADE_LOG_FILE,AUNDEKIOSK_REBOOT_REQUIRED_FILE /opt/aundekiosk/dashboard/server.ts
 WorkingDirectory=/opt/aundekiosk
 Environment=PORT=8080
 Environment=DENO_DIR=/opt/aundekiosk/.deno
