@@ -1,0 +1,3 @@
+- [User profile](user_profile.md) — Turgay: IT at "Aunde Teknik", Turkish chat/English code, security-first
+- [Plan execution workflow](feedback_plan_execution_workflow.md) — brainstorm→spec→plan→inline TDD on master→opus review→fix pass
+- [AundeKiosk project](aundekiosk_project.md) — Pi kiosk system, base 4 plans + admin-panel A-D done 2026-10-13, privileged-helper model
