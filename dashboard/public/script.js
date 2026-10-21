@@ -174,7 +174,9 @@ async function loadDeviceInfo() {
 
   set("di-hostname", data.hostname);
   set("di-model", data.piModel);
-  set("di-ram", data.ramMb != null ? `${data.ramMb} MB` : null);
+  set("di-ram", data.ramMb != null
+    ? data.ramMb >= 1024 ? `${(data.ramMb / 1024).toFixed(1)} GB` : `${data.ramMb} MB`
+    : null);
   set("di-kernel", data.kernel);
   set("di-disk", data.disk ? `${data.disk.used} / ${data.disk.total} (${data.disk.percent})` : null);
   set("di-temp", data.cpuTemp != null ? `${data.cpuTemp} °C` : null);

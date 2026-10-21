@@ -107,3 +107,72 @@ Deno.test("handleGet returns 200 with empty interfaces when ip addr returns no i
   const data = await res.json();
   assertEquals(data.interfaces.length, 0);
 });
+
+Deno.test("handleGet reads Pi model from device-tree (strips null byte)", async () => {
+  const api = makeApi(
+    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
+    { "/proc/device-tree/model": "Raspberry Pi 4 Model B Rev 1.5\0" },
+  );
+  const res = await api.handleGet();
+  const data = await res.json();
+  assertEquals(data.piModel, "Raspberry Pi 4 Model B Rev 1.5");
+});
+
+Deno.test("handleGet falls back to /proc/cpuinfo for Pi model when device-tree unavailable", async () => {
+  const cpuinfo = [
+    "processor\t: 0",
+    "BogoMIPS\t: 108.00",
+    "Revision\t: c03115",
+    "Model\t\t: Raspberry Pi 4 Model B Rev 1.5",
+  ].join("\n");
+  const api = makeApi(
+    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
+    { "/proc/cpuinfo": cpuinfo },
+  );
+  const res = await api.handleGet();
+  const data = await res.json();
+  assertEquals(data.piModel, "Raspberry Pi 4 Model B Rev 1.5");
+});
+
+Deno.test("handleGet parses RAM from /proc/meminfo", async () => {
+  const api = makeApi(
+    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
+    { "/proc/meminfo": "MemTotal:       3886336 kB\nMemFree:        1500000 kB\n" },
+  );
+  const res = await api.handleGet();
+  const data = await res.json();
+  assertEquals(data.ramMb, 3795);
+});
+
+Deno.test("handleGet returns kernel version from uname -r", async () => {
+  const api = makeApi(
+    { "hostname": "kiosk-01", "ip -4 -json addr": "[]", "uname -r": "6.18.39+rpt-rpi-v8\n" },
+    {},
+  );
+  const res = await api.handleGet();
+  const data = await res.json();
+  assertEquals(data.kernel, "6.18.39+rpt-rpi-v8");
+});
+
+Deno.test("handleGet parses disk usage from df -h /", async () => {
+  const dfOut = "Filesystem      Size  Used Avail Use% Mounted on\n/dev/mmcblk0p2   29G   11G   17G  39% /\n";
+  const api = makeApi(
+    { "hostname": "kiosk-01", "ip -4 -json addr": "[]", "df -h /": dfOut },
+    {},
+  );
+  const res = await api.handleGet();
+  const data = await res.json();
+  assertEquals(data.disk?.used, "11G");
+  assertEquals(data.disk?.total, "29G");
+  assertEquals(data.disk?.percent, "39%");
+});
+
+Deno.test("handleGet reads CPU temperature from thermal_zone0", async () => {
+  const api = makeApi(
+    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
+    { "/sys/class/thermal/thermal_zone0/temp": "70600\n" },
+  );
+  const res = await api.handleGet();
+  const data = await res.json();
+  assertEquals(data.cpuTemp, "70.6");
+});

@@ -49,13 +49,21 @@ export function createDeviceInfoApi(opts: DeviceInfoApiOptions) {
   }
 
   async function getPiModel(): Promise<string | null> {
+    // Device-tree is the reliable source on all Pi models (32-bit and 64-bit kernels).
+    // /proc/cpuinfo may omit the Model line on aarch64 kernels.
+    for (const path of ["/proc/device-tree/model", "/sys/firmware/devicetree/base/model"]) {
+      try {
+        const raw = await readFile(path);
+        const model = raw.replace(/\0/g, "").trim();
+        if (model) return model;
+      } catch { /* not available on this kernel */ }
+    }
     try {
       const content = await readFile("/proc/cpuinfo");
       const m = content.match(/^Model\s*:\s*(.+)$/m);
-      return m ? m[1].trim() : null;
-    } catch {
-      return null;
-    }
+      if (m) return m[1].trim();
+    } catch { /* not available */ }
+    return null;
   }
 
   async function getRamMb(): Promise<number | null> {
@@ -78,11 +86,13 @@ export function createDeviceInfoApi(opts: DeviceInfoApiOptions) {
 
   async function getDiskUsage(): Promise<{ used: string; total: string; percent: string } | null> {
     try {
-      const out = await runCommand("df", ["-h", "--output=used,size,pcent", "/"]);
+      const out = await runCommand("df", ["-h", "/"]);
       const lines = out.trim().split("\n");
-      const data = lines[1]?.trim().split(/\s+/);
-      if (!data || data.length < 3) return null;
-      return { used: data[0], total: data[1], percent: data[2] };
+      // Last line is always the data row; standard df columns:
+      // Filesystem  Size  Used  Avail  Use%  Mountpoint
+      const cols = lines[lines.length - 1]?.trim().split(/\s+/);
+      if (!cols || cols.length < 6) return null;
+      return { used: cols[2], total: cols[1], percent: cols[4] };
     } catch {
       return null;
     }
