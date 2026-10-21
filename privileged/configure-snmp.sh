@@ -73,9 +73,11 @@ chmod 600 "$SNMPD_USER_CONF"
 
 # SNMPv3 only: rouser + agentAddress, no com2sec/rocommunity line anywhere
 # — those are the v1/v2c community-string directives spec §8.3 forbids.
+# disk / enables dskTable OIDs (1.3.6.1.4.1.2021.9.*) for disk metrics.
 cat > "$SNMPD_CONF" <<EOF_CONF
 rouser ${USERNAME} priv
 agentAddress udp:161
+disk /
 EOF_CONF
 
 # SNMPv3's access model has no "restrict this user to this subnet"
