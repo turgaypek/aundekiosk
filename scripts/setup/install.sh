@@ -53,7 +53,7 @@ chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 
 msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables, novnc)..."
 apt-get update
-apt-get install -y jq chromium wtype xdotool openssl snmpd iptables unzip novnc unclutter-xfixes
+DEBIAN_FRONTEND=noninteractive apt-get install -y jq chromium wtype xdotool openssl snmpd iptables iptables-persistent netfilter-persistent unzip novnc unclutter-xfixes
 # ttyd is not in Debian Trixie repos; install the prebuilt binary from GitHub.
 if ! command -v ttyd &>/dev/null; then
   TTYD_VER="1.7.7"

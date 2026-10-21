@@ -24,6 +24,11 @@ ENABLED=$(echo "$PAYLOAD" | jq -r '.enabled')
 
 if [[ "$ENABLED" == "false" ]]; then
   systemctl disable --now snmpd
+  # Flush the SNMP chain so the port-161 restriction doesn't linger after
+  # snmpd is gone, then persist so the flushed state survives reboot.
+  iptables -F AUNDEKIOSK-SNMP 2>/dev/null || true
+  mkdir -p /etc/iptables
+  iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
   echo "SNMP disabled."
   exit 0
 fi
@@ -84,6 +89,12 @@ iptables -F AUNDEKIOSK-SNMP
 iptables -C INPUT -p udp --dport 161 -j AUNDEKIOSK-SNMP 2>/dev/null || iptables -I INPUT -p udp --dport 161 -j AUNDEKIOSK-SNMP
 iptables -A AUNDEKIOSK-SNMP -s "$ALLOWED_SOURCE" -j ACCEPT
 iptables -A AUNDEKIOSK-SNMP -j DROP
+
+# Persist so the source-IP restriction survives reboot.
+# Without this, snmpd would start on boot with no iptables chain in place
+# and be reachable from any host (until the dashboard reconfigures it).
+mkdir -p /etc/iptables
+iptables-save > /etc/iptables/rules.v4
 
 systemctl enable snmpd
 systemctl start snmpd
