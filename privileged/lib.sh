@@ -13,6 +13,7 @@ is_valid_network_mode() {
 }
 
 is_valid_ipv4() {
+  local -x LC_ALL=C
   local ip="$1"
   [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || return 1
   local IFS='.'
@@ -24,6 +25,7 @@ is_valid_ipv4() {
 }
 
 is_valid_cidr() {
+  local -x LC_ALL=C
   local cidr="$1"
   [[ "$cidr" =~ ^([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/([0-9]{1,2})$ ]] || return 1
   local ip="${BASH_REMATCH[1]}"
@@ -47,6 +49,7 @@ is_valid_wifi_password() {
 }
 
 is_valid_snmp_username() {
+  local -x LC_ALL=C
   [[ "$1" =~ ^[A-Za-z0-9_-]{1,32}$ ]]
 }
 
@@ -71,7 +74,10 @@ is_safe_secret_value() {
 # never starting or ending with a hyphen. change-hostname.sh hands this
 # straight to raspi-config, so anything that isn't a clean label (a
 # space, a dot, a shell metacharacter) must never reach it.
+# LC_ALL=C prevents Turkish-locale collation from treating [A-Z] as not
+# matching 'I' (the classic "Turkish i problem" in bash =~ ranges).
 is_valid_hostname() {
+  local -x LC_ALL=C
   [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ ]]
 }
 
