@@ -419,7 +419,10 @@
       <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2" draggable="true">
         <span class="drag-handle text-muted me-1" title="Sürükle / Drag">⠿</span>
         <a target="_blank" rel="noopener" class="me-auto"></a>
-        <input type="number" class="form-control aundekiosk-num-input url-duration" min="1" max="300" data-i18n-placeholder="url_duration_placeholder" />
+        <div class="input-group" style="width:auto">
+          <input type="number" class="form-control aundekiosk-num-input url-duration" min="1" max="300" data-i18n-placeholder="url_duration_placeholder" />
+          <span class="input-group-text">sn</span>
+        </div>
         <button type="button" class="btn btn-sm btn-outline-danger remove-url" data-i18n="remove_button">Remove</button>
       </li>
     </template>
