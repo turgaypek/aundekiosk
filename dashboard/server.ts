@@ -317,6 +317,16 @@ export function createHandler(options: HandlerOptions = {}) {
       return new Response("Update started.", { status: 202 });
     }
 
+    if (url.pathname === "/api/device-label" && req.method === "GET") {
+      try {
+        const raw = await Deno.readTextFile(configPath);
+        const cfg = JSON.parse(raw) as { location?: string };
+        return Response.json({ label: cfg.location ?? "" });
+      } catch {
+        return Response.json({ label: "" });
+      }
+    }
+
     if (url.pathname === "/api/me" && req.method === "GET") {
       const session = authApi.requireSession(req);
       if (!session) return new Response("Unauthorized", { status: 401 });

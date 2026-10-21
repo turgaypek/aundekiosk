@@ -35,6 +35,16 @@ async function bootstrapAuth() {
     const state = decideUiState(hasAdmin, authenticated);
     showOnly(state === "app" ? appSection : loginSection);
 
+    if (state !== "app") {
+      fetch("/api/device-label")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const el = document.getElementById("login-device-label");
+          if (el && data?.label) { el.textContent = data.label; el.hidden = false; }
+        })
+        .catch(() => {});
+    }
+
     if (state === "app") {
       const meRes = await fetch("/api/me");
       const { role } = meRes.ok ? await meRes.json() : { role: "viewer" };
