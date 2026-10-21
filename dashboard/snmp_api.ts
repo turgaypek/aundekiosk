@@ -62,10 +62,13 @@ export interface SnmpApiOptions {
   // caller, which pipes the payload (including both passphrases) to
   // configure-snmp.sh over stdin as JSON, never as command-line arguments.
   runPrivilegedConfigure: (payload: Record<string, unknown>) => Promise<void>;
+  readFile: (path: string) => Promise<string>;
 }
 
+const SNMP_STATUS_PATH = "/opt/aundekiosk/state/snmp-status.json";
+
 export function createSnmpApi(opts: SnmpApiOptions) {
-  const { stepUpGuard, auditLog, runPrivilegedConfigure } = opts;
+  const { stepUpGuard, auditLog, runPrivilegedConfigure, readFile } = opts;
 
   async function handleConfigure(req: Request, username: string, ip: string): Promise<Response> {
     let body: unknown;
@@ -99,5 +102,14 @@ export function createSnmpApi(opts: SnmpApiOptions) {
     return new Response("SNMP configuration updated.", { status: 200 });
   }
 
-  return { handleConfigure };
+  async function handleGetStatus(): Promise<Response> {
+    try {
+      const content = await readFile(SNMP_STATUS_PATH);
+      return Response.json(JSON.parse(content));
+    } catch {
+      return Response.json({ enabled: false });
+    }
+  }
+
+  return { handleConfigure, handleGetStatus };
 }

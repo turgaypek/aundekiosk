@@ -514,6 +514,27 @@ async function confirmNetworkConfig() {
   }
 }
 
+function updateSnmpFieldVisibility() {
+  const enabled = document.getElementById("snmp-enabled")?.checked;
+  const fields = document.getElementById("snmp-fields");
+  if (fields) fields.style.display = enabled ? "" : "none";
+}
+
+async function loadSnmpStatus() {
+  try {
+    const res = await fetch("/snmp-config");
+    if (!res.ok) return;
+    const data = await res.json();
+    const enabledEl = document.getElementById("snmp-enabled");
+    if (enabledEl) enabledEl.checked = data.enabled !== false;
+    if (data.username) document.getElementById("snmp-username").value = data.username;
+    if (data.authProtocol) document.getElementById("snmp-auth-protocol").value = data.authProtocol;
+    if (data.privProtocol) document.getElementById("snmp-priv-protocol").value = data.privProtocol;
+    if (data.allowedSource) document.getElementById("snmp-allowed-source").value = data.allowedSource;
+    updateSnmpFieldVisibility();
+  } catch { /* not yet configured */ }
+}
+
 async function saveSnmpConfig() {
   const enabled = document.getElementById("snmp-enabled").checked;
   const payload = enabled
@@ -938,9 +959,11 @@ if (typeof document !== "undefined") {
   document.getElementById("network-mode")?.addEventListener("change", updateNetworkFieldVisibility);
   document.getElementById("network-apply")?.addEventListener("click", applyNetworkConfig);
   document.getElementById("network-confirm")?.addEventListener("click", confirmNetworkConfig);
+  document.getElementById("snmp-enabled")?.addEventListener("change", updateSnmpFieldVisibility);
   document.getElementById("snmp-save")?.addEventListener("click", saveSnmpConfig);
   document.getElementById("os-password-save")?.addEventListener("click", saveOsPassword);
   updateNetworkFieldVisibility();
+  loadSnmpStatus();
 
   document.getElementById("add-user-button")?.addEventListener("click", addUser);
   document.getElementById("apt-upgrade-start")?.addEventListener("click", startAptUpgrade);

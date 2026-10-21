@@ -169,6 +169,7 @@ export function createHandler(options: HandlerOptions = {}) {
         JSON.stringify(payload),
       );
     },
+    readFile: (path) => Deno.readTextFile(path),
   });
   const vncApi = createVncApi({
     stepUpGuard: createStepUpGuard({
@@ -368,6 +369,12 @@ export function createHandler(options: HandlerOptions = {}) {
       const session = requireAdmin(req);
       if (session instanceof Response) return session;
       return networkApi.handleConfirm(req, session.username, ip);
+    }
+
+    if (url.pathname === "/snmp-config" && req.method === "GET") {
+      const session = requireAdmin(req);
+      if (session instanceof Response) return session;
+      return snmpApi.handleGetStatus();
     }
 
     if (url.pathname === "/snmp-config" && req.method === "POST") {

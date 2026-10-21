@@ -29,6 +29,8 @@ if [[ "$ENABLED" == "false" ]]; then
   iptables -F AUNDEKIOSK-SNMP 2>/dev/null || true
   mkdir -p /etc/iptables
   iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+  printf '{"enabled":false}\n' > /opt/aundekiosk/state/snmp-status.json
+  chmod 0644 /opt/aundekiosk/state/snmp-status.json
   echo "SNMP disabled."
   exit 0
 fi
@@ -98,4 +100,12 @@ iptables-save > /etc/iptables/rules.v4
 
 systemctl enable snmpd
 systemctl start snmpd
+
+# Write non-secret config for the dashboard's GET /snmp-config endpoint.
+# All values are pre-validated by lib.sh so no JSON-special chars can appear.
+printf '{"enabled":true,"username":"%s","authProtocol":"%s","privProtocol":"%s","allowedSource":"%s"}\n' \
+  "$USERNAME" "$AUTH_PROTOCOL" "$PRIV_PROTOCOL" "$ALLOWED_SOURCE" \
+  > /opt/aundekiosk/state/snmp-status.json
+chmod 0644 /opt/aundekiosk/state/snmp-status.json
+
 echo "SNMPv3 configured for user '${USERNAME}', restricted to ${ALLOWED_SOURCE}."
