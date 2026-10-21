@@ -74,10 +74,26 @@ chmod 600 "$SNMPD_USER_CONF"
 # SNMPv3 only: rouser + agentAddress, no com2sec/rocommunity line anywhere
 # — those are the v1/v2c community-string directives spec §8.3 forbids.
 # disk / enables dskTable OIDs (1.3.6.1.4.1.2021.9.*) for disk metrics.
+# extend throttled exposes vcgencmd get_throttled via NET-SNMP-EXTEND-MIB.
+cat > /usr/local/bin/pi-throttled <<'EOF_SCRIPT'
+#!/bin/sh
+out=$(vcgencmd get_throttled 2>/dev/null)
+if [ $? -eq 0 ] && echo "$out" | grep -q "throttled="; then
+    echo "$out" | cut -d= -f2
+else
+    echo "0x0"
+fi
+EOF_SCRIPT
+chmod 0755 /usr/local/bin/pi-throttled
+
+# snmpd (Debian-snmp user) needs video group to run vcgencmd
+usermod -aG video Debian-snmp 2>/dev/null || true
+
 cat > "$SNMPD_CONF" <<EOF_CONF
 rouser ${USERNAME} priv
 agentAddress udp:161
 disk /
+extend throttled /usr/local/bin/pi-throttled
 EOF_CONF
 
 # SNMPv3's access model has no "restrict this user to this subnet"
