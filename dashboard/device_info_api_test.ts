@@ -110,8 +110,12 @@ Deno.test("handleGet returns 200 with empty interfaces when ip addr returns no i
 
 Deno.test("handleGet reads Pi model from device-tree (strips null byte)", async () => {
   const api = makeApi(
-    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
-    { "/proc/device-tree/model": "Raspberry Pi 4 Model B Rev 1.5\0" },
+    {
+      "hostname": "kiosk-01",
+      "ip -4 -json addr": "[]",
+      "cat /proc/device-tree/model": "Raspberry Pi 4 Model B Rev 1.5\0",
+    },
+    {},
   );
   const res = await api.handleGet();
   const data = await res.json();
@@ -126,8 +130,12 @@ Deno.test("handleGet falls back to /proc/cpuinfo for Pi model when device-tree u
     "Model\t\t: Raspberry Pi 4 Model B Rev 1.5",
   ].join("\n");
   const api = makeApi(
-    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
-    { "/proc/cpuinfo": cpuinfo },
+    {
+      "hostname": "kiosk-01",
+      "ip -4 -json addr": "[]",
+      "cat /proc/cpuinfo": cpuinfo,
+    },
+    {},
   );
   const res = await api.handleGet();
   const data = await res.json();
@@ -136,8 +144,12 @@ Deno.test("handleGet falls back to /proc/cpuinfo for Pi model when device-tree u
 
 Deno.test("handleGet parses RAM from /proc/meminfo", async () => {
   const api = makeApi(
-    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
-    { "/proc/meminfo": "MemTotal:       3886336 kB\nMemFree:        1500000 kB\n" },
+    {
+      "hostname": "kiosk-01",
+      "ip -4 -json addr": "[]",
+      "cat /proc/meminfo": "MemTotal:       3886336 kB\nMemFree:        1500000 kB\n",
+    },
+    {},
   );
   const res = await api.handleGet();
   const data = await res.json();
@@ -169,8 +181,12 @@ Deno.test("handleGet parses disk usage from df -h /", async () => {
 
 Deno.test("handleGet reads CPU temperature from thermal_zone0", async () => {
   const api = makeApi(
-    { "hostname": "kiosk-01", "ip -4 -json addr": "[]" },
-    { "/sys/class/thermal/thermal_zone0/temp": "70600\n" },
+    {
+      "hostname": "kiosk-01",
+      "ip -4 -json addr": "[]",
+      "cat /sys/class/thermal/thermal_zone0/temp": "70600\n",
+    },
+    {},
   );
   const res = await api.handleGet();
   const data = await res.json();

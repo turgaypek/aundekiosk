@@ -49,17 +49,18 @@ export function createDeviceInfoApi(opts: DeviceInfoApiOptions) {
   }
 
   async function getPiModel(): Promise<string | null> {
+    // Use cat (subprocess) to read device-tree/proc files — Deno's --allow-read
+    // does not reliably cover /proc and /sys virtual filesystems.
     // Device-tree is the reliable source on all Pi models (32-bit and 64-bit kernels).
-    // /proc/cpuinfo may omit the Model line on aarch64 kernels.
     for (const path of ["/proc/device-tree/model", "/sys/firmware/devicetree/base/model"]) {
       try {
-        const raw = await readFile(path);
+        const raw = await runCommand("cat", [path]);
         const model = raw.replace(/\0/g, "").trim();
         if (model) return model;
       } catch { /* not available on this kernel */ }
     }
     try {
-      const content = await readFile("/proc/cpuinfo");
+      const content = await runCommand("cat", ["/proc/cpuinfo"]);
       const m = content.match(/^Model\s*:\s*(.+)$/m);
       if (m) return m[1].trim();
     } catch { /* not available */ }
@@ -68,7 +69,7 @@ export function createDeviceInfoApi(opts: DeviceInfoApiOptions) {
 
   async function getRamMb(): Promise<number | null> {
     try {
-      const content = await readFile("/proc/meminfo");
+      const content = await runCommand("cat", ["/proc/meminfo"]);
       const m = content.match(/^MemTotal:\s*(\d+)\s*kB/m);
       return m ? Math.round(Number(m[1]) / 1024) : null;
     } catch {
@@ -100,7 +101,7 @@ export function createDeviceInfoApi(opts: DeviceInfoApiOptions) {
 
   async function getCpuTemp(): Promise<string | null> {
     try {
-      const raw = await readFile("/sys/class/thermal/thermal_zone0/temp");
+      const raw = await runCommand("cat", ["/sys/class/thermal/thermal_zone0/temp"]);
       const millideg = Number(raw.trim());
       if (isNaN(millideg)) return null;
       return (millideg / 1000).toFixed(1);
