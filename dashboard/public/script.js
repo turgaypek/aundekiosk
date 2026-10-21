@@ -521,18 +521,27 @@ function updateSnmpFieldVisibility() {
 }
 
 async function loadSnmpStatus() {
+  const ORG_DEFAULTS = {
+    username: "aunde-monitor",
+    authProtocol: "SHA-256",
+    privProtocol: "AES",
+    allowedSource: "192.168.6.200",
+  };
+  let data = { enabled: false, ...ORG_DEFAULTS };
   try {
     const res = await fetch("/snmp-config");
-    if (!res.ok) return;
-    const data = await res.json();
-    const enabledEl = document.getElementById("snmp-enabled");
-    if (enabledEl) enabledEl.checked = data.enabled !== false;
-    if (data.username) document.getElementById("snmp-username").value = data.username;
-    if (data.authProtocol) document.getElementById("snmp-auth-protocol").value = data.authProtocol;
-    if (data.privProtocol) document.getElementById("snmp-priv-protocol").value = data.privProtocol;
-    if (data.allowedSource) document.getElementById("snmp-allowed-source").value = data.allowedSource;
-    updateSnmpFieldVisibility();
+    if (res.ok) {
+      const saved = await res.json();
+      data = { ...ORG_DEFAULTS, ...saved };
+    }
   } catch { /* not yet configured */ }
+  const enabledEl = document.getElementById("snmp-enabled");
+  if (enabledEl) enabledEl.checked = data.enabled !== false;
+  document.getElementById("snmp-username").value = data.username;
+  document.getElementById("snmp-auth-protocol").value = data.authProtocol;
+  document.getElementById("snmp-priv-protocol").value = data.privProtocol;
+  document.getElementById("snmp-allowed-source").value = data.allowedSource;
+  updateSnmpFieldVisibility();
 }
 
 async function saveSnmpConfig() {
