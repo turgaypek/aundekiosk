@@ -23,12 +23,12 @@ curl -sSL https://raw.githubusercontent.com/turgaypek/aundekiosk/master/scripts/
 - C: Multi-user accounts + audit log viewer
 - D: Loopback-only aundekiosk-recover password recovery tool
 
-## Last Changes (2026-10-20)
-- Location/region label in dashboard header (inline editable, saved to config.json)
-- Device info panel: Pi model, RAM, kernel, disk, CPU temp, hostname, IP/gateway/DNS
-- Restart button with confirmation dialog (btn-outline-danger)
-- update.sh fixes: $HOME export, git stash -u
-- .gitignore: added .deno/, tls/, config.json, monitor-config.json, *.db, audit.log, videos/, state/
+## Last Changes (2026-10-21)
+- Device info panel hardware fields now working: Pi model (device-tree), RAM, kernel, disk, CPU temp
+- Device info fixes: use `cat` subprocess for /proc and /sys reads — Deno --allow-read does not cover virtual filesystems (symlink resolution issue); `cat` in --allow-run bypasses sandbox
+- Dashboard update button fixed: run-update.sh now resets failed systemd unit before re-run + --collect flag for auto-cleanup
+- stable-2026-10-21 tag pushed to GitHub
+- Previous (2026-10-20): Location/region label, device info panel, restart button, update.sh/$HOME/git stash fixes
 
 ## Security Architecture (critical — never deviate)
 Privileged-helper model: every privileged action goes through root-owned, sudoers-whitelisted, single-purpose bash scripts under `privileged/`. Dashboard runs as unprivileged `aundekiosk` user. Secrets travel over stdin as JSON, never argv.
@@ -43,3 +43,6 @@ Pi network addresses tracked locally by the operator.
 - Deno cache at `/opt/aundekiosk/.deno/`, pre-cached by install.sh so service starts with `--cached-only`
 - wayvnc config at `/etc/wayvnc/config`, `enable_auth=false` (noVNC requires security type None)
 - URL rotation uses CDP not wtype (Chromium kiosk intercepts keyboard shortcuts)
+- Deno `--allow-read` does NOT work for /proc and /sys virtual filesystems — symlink resolution means canonical paths don't match the specified entries. Use `runCommand("cat", [path])` instead of `readFile()` for /proc and /sys files; add `cat` to `--allow-run`
+- Service name is `aundekiosk-dashboard.service` (not `aundekiosk.service`)
+- Dashboard update button uses `privileged/run-update.sh` → `systemd-run --unit=aundekiosk-update`; must `systemctl reset-failed aundekiosk-update` if previously failed (now handled automatically by run-update.sh)

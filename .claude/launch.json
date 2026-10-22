@@ -6,6 +6,12 @@
       "runtimeExecutable": "scripts\\dev\\run-dashboard-dev.cmd",
       "runtimeArgs": [],
       "port": 8080
+    },
+    {
+      "name": "pipanel-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "C:\\Claude\\Project\\Aundekiosk Dashboard\\frontend"],
+      "port": 4884
     }
   ]
 }
