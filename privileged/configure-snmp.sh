@@ -40,7 +40,12 @@ AUTH_PROTOCOL=$(echo "$PAYLOAD" | jq -r '.authProtocol')
 AUTH_PASSPHRASE=$(echo "$PAYLOAD" | jq -r '.authPassphrase')
 PRIV_PROTOCOL=$(echo "$PAYLOAD" | jq -r '.privProtocol')
 PRIV_PASSPHRASE=$(echo "$PAYLOAD" | jq -r '.privPassphrase')
-ALLOWED_SOURCE=$(echo "$PAYLOAD" | jq -r '.allowedSource')
+# Support both allowedSources (array) and legacy allowedSource (string).
+readarray -t ALLOWED_SOURCES < <(echo "$PAYLOAD" | jq -r '
+  if .allowedSources and (.allowedSources | length) > 0
+  then .allowedSources[]
+  else .allowedSource
+  end')
 
 is_valid_snmp_username "$USERNAME" || { echo "Invalid SNMP username." >&2; exit 1; }
 is_valid_snmp_auth_protocol "$AUTH_PROTOCOL" || { echo "Invalid auth protocol (use SHA or SHA-256)." >&2; exit 1; }
@@ -53,10 +58,13 @@ is_valid_snmp_priv_protocol "$PRIV_PROTOCOL" || { echo "Invalid priv protocol (u
 # (final review: Critical C3).
 is_safe_secret_value "$AUTH_PASSPHRASE" || { echo "Auth passphrase must not contain a newline." >&2; exit 1; }
 is_safe_secret_value "$PRIV_PASSPHRASE" || { echo "Priv passphrase must not contain a newline." >&2; exit 1; }
-if ! is_valid_cidr "$ALLOWED_SOURCE" && ! is_valid_ipv4 "$ALLOWED_SOURCE"; then
-  echo "Invalid allowedSource (must be an IPv4 address or CIDR)." >&2
-  exit 1
-fi
+[[ "${#ALLOWED_SOURCES[@]}" -gt 0 ]] || { echo "allowedSource or allowedSources is required." >&2; exit 1; }
+for _SRC in "${ALLOWED_SOURCES[@]}"; do
+  if ! is_valid_cidr "$_SRC" && ! is_valid_ipv4 "$_SRC"; then
+    echo "Invalid allowedSource '$_SRC' (must be an IPv4 address or CIDR)." >&2
+    exit 1
+  fi
+done
 
 # Stop snmpd BEFORE writing the config files below. net-snmp rewrites
 # its own persistent user-config file on normal shutdown — writing while
@@ -93,6 +101,7 @@ cat > "$SNMPD_CONF" <<EOF_CONF
 rouser ${USERNAME} priv
 agentAddress udp:161
 disk /
+diskio mmcblk0
 extend throttled /usr/local/bin/pi-throttled
 EOF_CONF
 
@@ -107,7 +116,9 @@ EOF_CONF
 iptables -N AUNDEKIOSK-SNMP 2>/dev/null || true
 iptables -F AUNDEKIOSK-SNMP
 iptables -C INPUT -p udp --dport 161 -j AUNDEKIOSK-SNMP 2>/dev/null || iptables -I INPUT -p udp --dport 161 -j AUNDEKIOSK-SNMP
-iptables -A AUNDEKIOSK-SNMP -s "$ALLOWED_SOURCE" -j ACCEPT
+for _SRC in "${ALLOWED_SOURCES[@]}"; do
+  iptables -A AUNDEKIOSK-SNMP -s "$_SRC" -j ACCEPT
+done
 iptables -A AUNDEKIOSK-SNMP -j DROP
 
 # Persist so the source-IP restriction survives reboot.
@@ -121,9 +132,10 @@ systemctl start snmpd
 
 # Write non-secret config for the dashboard's GET /snmp-config endpoint.
 # All values are pre-validated by lib.sh so no JSON-special chars can appear.
-printf '{"enabled":true,"username":"%s","authProtocol":"%s","privProtocol":"%s","allowedSource":"%s"}\n' \
-  "$USERNAME" "$AUTH_PROTOCOL" "$PRIV_PROTOCOL" "$ALLOWED_SOURCE" \
+SOURCES_JSON=$(printf '%s\n' "${ALLOWED_SOURCES[@]}" | jq -R . | jq -s .)
+printf '{"enabled":true,"username":"%s","authProtocol":"%s","privProtocol":"%s","allowedSource":"%s","allowedSources":%s}\n' \
+  "$USERNAME" "$AUTH_PROTOCOL" "$PRIV_PROTOCOL" "${ALLOWED_SOURCES[0]}" "$SOURCES_JSON" \
   > /opt/aundekiosk/state/snmp-status.json
 chmod 0644 /opt/aundekiosk/state/snmp-status.json
 
-echo "SNMPv3 configured for user '${USERNAME}', restricted to ${ALLOWED_SOURCE}."
+echo "SNMPv3 configured for user '${USERNAME}', restricted to ${ALLOWED_SOURCES[*]}."
