@@ -47,12 +47,12 @@ export type VerifyResult =
   | { outcome: "invalid"; justLocked: boolean }
   | { outcome: "no-admin" };
 
-// Lockout doubles starting at 1 minute (on the 5th failure), capped at 30
+// Lockout doubles starting at 1 minute (on the 5th failure), capped at 10
 // minutes, so repeated brute-forcing gets slower rather than permanently
 // locking an account out.
 const LOCKOUT_THRESHOLD = 5;
 const ONE_MINUTE_MS = 60_000;
-const LOCKOUT_CAP_MS = 30 * ONE_MINUTE_MS;
+const LOCKOUT_CAP_MS = 10 * ONE_MINUTE_MS;
 
 function lockoutDurationMs(failedAttempts: number): number {
   const exponent = Math.max(0, failedAttempts - LOCKOUT_THRESHOLD);
