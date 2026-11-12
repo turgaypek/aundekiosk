@@ -142,11 +142,11 @@ try {
 
     $version | Out-File -FilePath "$distDir\version.txt" -Encoding ascii -NoNewline
 
-    # bootstrap-local.sh'i da dist\'a kopyala
-    $bsSource = Join-Path $REPO_DIR "scripts\setup\bootstrap-local.sh"
-    if (Test-Path $bsSource) {
-        Copy-Item $bsSource "$distDir\bootstrap-local.sh" -Force
-    }
+    # bootstrap-local.sh ve web.config da dist\'a kopyala
+    $bsSource  = Join-Path $REPO_DIR "scripts\setup\bootstrap-local.sh"
+    $wcSource  = Join-Path $REPO_DIR "scripts\dist\iis-web.config"
+    if (Test-Path $bsSource) { Copy-Item $bsSource "$distDir\bootstrap-local.sh" -Force }
+    if (Test-Path $wcSource) { Copy-Item $wcSource "$distDir\web.config"          -Force }
 
     $pkgSizeMB = [math]::Round((Get-Item $latestPkg).Length / 1MB, 1)
     Write-Host ""
@@ -160,9 +160,8 @@ try {
         Copy-Item $latestPkg    "$IIS_DIR\aundekiosk-latest.tar.gz" -Force
         Copy-Item $versionedPkg "$IIS_DIR\aundekiosk-$date.tar.gz"  -Force
         $version | Out-File -FilePath "$IIS_DIR\version.txt" -Encoding ascii -NoNewline
-        if (Test-Path $bsSource) {
-            Copy-Item $bsSource "$IIS_DIR\bootstrap-local.sh" -Force
-        }
+        if (Test-Path $bsSource) { Copy-Item $bsSource "$IIS_DIR\bootstrap-local.sh" -Force }
+        if (Test-Path $wcSource) { Copy-Item $wcSource "$IIS_DIR\web.config"          -Force }
         Write-Host "IIS'e kopyalandi." -ForegroundColor Green
     } else {
         Write-Host ""
