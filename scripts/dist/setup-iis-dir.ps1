@@ -58,7 +58,7 @@ Write-Host "IIS yeniden basladi." -ForegroundColor Green
 Write-Host ""
 Write-Host "=== Kurulum Tamamlandi ===" -ForegroundColor Green
 Write-Host ""
-Write-Host "Siradaki adim — dev makinenizde paketi olusturun:"
+Write-Host "Siradaki adim - dev makinenizde paketi olusturun:"
 Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\dist\build-package.ps1 -Password <pi_sifresi>"
 Write-Host ""
 Write-Host "Paket olusunca bu adres aktif olacak:"

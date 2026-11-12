@@ -90,9 +90,9 @@ try {
     & $pscp -pw $pw -batch "${PI_USER}@${SOURCE_PI}:/usr/local/bin/deno" "$toolsDir\deno"
     if ($LASTEXITCODE -eq 0) {
         $sz = [math]::Round((Get-Item "$toolsDir\deno").Length / 1MB, 1)
-        Write-Host "       OK — $sz MB" -ForegroundColor Gray
+        Write-Host "       OK - $sz MB" -ForegroundColor Gray
     } else {
-        Write-Warning "Deno binary alinamadi.`n  → Pi ile hic interactive baglanti kurmamissaniz once PuTTY ile baglananin host key kaydolsun."
+        Write-Warning "Deno binary alinamadi. Pi ile hic interactive baglanti kurmamissaniz once PuTTY ile baglananin host key kaydolsun."
     }
 
     # Step 3: ttyd binary
@@ -100,9 +100,9 @@ try {
     & $pscp -pw $pw -batch "${PI_USER}@${SOURCE_PI}:/usr/local/bin/ttyd" "$toolsDir\ttyd"
     if ($LASTEXITCODE -eq 0) {
         $sz = [math]::Round((Get-Item "$toolsDir\ttyd").Length / 1MB, 1)
-        Write-Host "       OK — $sz MB" -ForegroundColor Gray
+        Write-Host "       OK - $sz MB" -ForegroundColor Gray
     } else {
-        Write-Warning "ttyd binary alinamadi — devam ediliyor (terminal ozelligi calislamayabilir)."
+        Write-Warning "ttyd binary alinamadi - devam ediliyor (terminal ozelligi calislamayabilir)."
     }
 
     # Step 4: Deno cache (Pi'den tar olustur, pscp ile indir, Windows'ta ac)
