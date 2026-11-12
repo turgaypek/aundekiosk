@@ -86,7 +86,7 @@ try {
     Write-Host "       VERSION yazildi: $version" -ForegroundColor Gray
 
     # Step 2: Deno binary
-    Write-Host "[2/5] Deno binary aliniyor ($SOURCE_PI:/usr/local/bin/deno)..." -ForegroundColor Cyan
+    Write-Host "[2/5] Deno binary aliniyor (${SOURCE_PI}:/usr/local/bin/deno)..." -ForegroundColor Cyan
     & $pscp -pw $pw -batch "${PI_USER}@${SOURCE_PI}:/usr/local/bin/deno" "$toolsDir\deno"
     if ($LASTEXITCODE -eq 0) {
         $sz = [math]::Round((Get-Item "$toolsDir\deno").Length / 1MB, 1)
@@ -96,7 +96,7 @@ try {
     }
 
     # Step 3: ttyd binary
-    Write-Host "[3/5] ttyd binary aliniyor ($SOURCE_PI:/usr/local/bin/ttyd)..." -ForegroundColor Cyan
+    Write-Host "[3/5] ttyd binary aliniyor (${SOURCE_PI}:/usr/local/bin/ttyd)..." -ForegroundColor Cyan
     & $pscp -pw $pw -batch "${PI_USER}@${SOURCE_PI}:/usr/local/bin/ttyd" "$toolsDir\ttyd"
     if ($LASTEXITCODE -eq 0) {
         $sz = [math]::Round((Get-Item "$toolsDir\ttyd").Length / 1MB, 1)
@@ -105,11 +105,11 @@ try {
         Write-Warning "ttyd binary alinamadi — devam ediliyor (terminal ozelligi calislamayabilir)."
     }
 
-    # Step 4: Deno cache (Pi'de tar olustur, pscp ile indir, Windows'ta ac)
-    Write-Host "[4/5] Deno cache aliniyor (Pi'de tar olusturuluyor)..." -ForegroundColor Cyan
+    # Step 4: Deno cache (Pi'den tar olustur, pscp ile indir, Windows'ta ac)
+    Write-Host "[4/5] Deno cache aliniyor..." -ForegroundColor Cyan
     $piTarPath = "/tmp/aundekiosk-deno-cache-$commitShort.tar.gz"
     $tarOut = & $plink -ssh "${PI_USER}@${SOURCE_PI}" -pw $pw -batch `
-        "tar czf $piTarPath -C /opt/aundekiosk .deno 2>/dev/null && echo TAR_OK || echo TAR_FAIL" 2>&1
+        "tar czf $piTarPath -C /opt/aundekiosk .deno 2>/dev/null && echo TAR_OK || echo TAR_FAIL"
     if ("$tarOut" -match "TAR_OK") {
         $cacheTmp = Join-Path $tmpDir "deno-cache.tar.gz"
         & $pscp -pw $pw -batch "${PI_USER}@${SOURCE_PI}:${piTarPath}" $cacheTmp
