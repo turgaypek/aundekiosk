@@ -54,26 +54,34 @@ chmod 0600 "$AUNDEKIOSK_PRIV_DIR/pi-user.txt"
 msg "$INFO" "Installing runtime dependencies (jq, chromium, wtype, xdotool, deno, snmpd, iptables, novnc)..."
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y jq chromium wtype xdotool openssl snmpd iptables iptables-persistent netfilter-persistent unzip novnc unclutter-xfixes
-# ttyd is not in Debian Trixie repos; install the prebuilt binary from GitHub.
+# ttyd is not in Debian Trixie repos; use the bundled binary (LOCAL_INSTALL) or download from GitHub.
 if ! command -v ttyd &>/dev/null; then
-  TTYD_VER="1.7.7"
-  TTYD_ARCH=$(uname -m)
-  case "$TTYD_ARCH" in
-    aarch64) TTYD_BIN="ttyd.aarch64" ;;
-    x86_64)  TTYD_BIN="ttyd.x86_64" ;;
-    *)       msg "$WARNING" "No prebuilt ttyd binary for $TTYD_ARCH — browser terminal will be unavailable." ; TTYD_BIN="" ;;
-  esac
-  if [ -n "$TTYD_BIN" ]; then
-    if curl -fsSL --connect-timeout 15 "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VER}/${TTYD_BIN}" -o /usr/local/bin/ttyd; then
-      chmod +x /usr/local/bin/ttyd
-      msg "$SUCCESS" "ttyd ${TTYD_VER} installed from GitHub."
-    else
-      msg "$WARNING" "ttyd download failed (no internet?) — browser terminal will be unavailable."
+  if [ "${LOCAL_INSTALL:-0}" = "1" ] && [ -f "$AUNDEKIOSK_INSTALL_DIR/tools/ttyd" ]; then
+    install -m 0755 "$AUNDEKIOSK_INSTALL_DIR/tools/ttyd" /usr/local/bin/ttyd
+    msg "$SUCCESS" "ttyd installed from local package."
+  else
+    TTYD_VER="1.7.7"
+    TTYD_ARCH=$(uname -m)
+    case "$TTYD_ARCH" in
+      aarch64) TTYD_BIN="ttyd.aarch64" ;;
+      x86_64)  TTYD_BIN="ttyd.x86_64" ;;
+      *)       msg "$WARNING" "No prebuilt ttyd binary for $TTYD_ARCH — browser terminal will be unavailable." ; TTYD_BIN="" ;;
+    esac
+    if [ -n "$TTYD_BIN" ]; then
+      if curl -fsSL --connect-timeout 15 "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VER}/${TTYD_BIN}" -o /usr/local/bin/ttyd; then
+        chmod +x /usr/local/bin/ttyd
+        msg "$SUCCESS" "ttyd ${TTYD_VER} installed from GitHub."
+      else
+        msg "$WARNING" "ttyd download failed (no internet?) — browser terminal will be unavailable."
+      fi
     fi
   fi
 fi
 if ! command -v deno &>/dev/null; then
-  if ! curl -fsSL --connect-timeout 15 https://deno.land/install.sh | DENO_INSTALL=/usr/local sh; then
+  if [ "${LOCAL_INSTALL:-0}" = "1" ] && [ -f "$AUNDEKIOSK_INSTALL_DIR/tools/deno" ]; then
+    install -m 0755 "$AUNDEKIOSK_INSTALL_DIR/tools/deno" /usr/local/bin/deno
+    msg "$SUCCESS" "Deno installed from local package."
+  elif ! curl -fsSL --connect-timeout 15 https://deno.land/install.sh | DENO_INSTALL=/usr/local sh; then
     msg "$ERROR" "Deno install failed and deno is not already installed. Dashboard cannot start without Deno."
     exit 1
   fi
@@ -177,9 +185,15 @@ msg "$INFO" "Pre-caching the dashboard's Deno dependencies (so the service never
 # hands this directory to it along with everything else. --lock verifies
 # the one pinned dependency's integrity hash instead of trusting whatever
 # the registry serves at cache time.
-DENO_DIR="$AUNDEKIOSK_INSTALL_DIR/.deno" /usr/local/bin/deno cache \
-    --lock="$AUNDEKIOSK_INSTALL_DIR/dashboard/deno.lock" \
-    "$AUNDEKIOSK_INSTALL_DIR/dashboard/server.ts"
+# In LOCAL_INSTALL mode the cache was bundled into the package; skip the
+# network step so installs without internet access still work.
+if [ "${LOCAL_INSTALL:-0}" = "1" ] && [ -d "$AUNDEKIOSK_INSTALL_DIR/.deno" ]; then
+    msg "$SUCCESS" "Deno cache bundled in package — skipping network cache step."
+else
+    DENO_DIR="$AUNDEKIOSK_INSTALL_DIR/.deno" /usr/local/bin/deno cache \
+        --lock="$AUNDEKIOSK_INSTALL_DIR/dashboard/deno.lock" \
+        "$AUNDEKIOSK_INSTALL_DIR/dashboard/server.ts"
+fi
 
 msg "$INFO" "Creating video storage and runtime state directories..."
 mkdir -p "$AUNDEKIOSK_INSTALL_DIR/videos"
@@ -201,6 +215,16 @@ chmod -R go-w "$AUNDEKIOSK_INSTALL_DIR/recovery"
 # refusal that the blanket chown above would otherwise trigger.
 if [ -d "$AUNDEKIOSK_INSTALL_DIR/.git" ]; then
     chown -R root:root "$AUNDEKIOSK_INSTALL_DIR/.git"
+fi
+
+# Keep VERSION current so both git-based and LOCAL_INSTALL deployments can
+# report their version without requiring git at runtime.
+if [ -d "$AUNDEKIOSK_INSTALL_DIR/.git" ]; then
+    git -C "$AUNDEKIOSK_INSTALL_DIR" -c safe.directory="$AUNDEKIOSK_INSTALL_DIR" \
+        log --oneline -1 2>/dev/null > "$AUNDEKIOSK_INSTALL_DIR/VERSION" || true
+fi
+if [ -f "$AUNDEKIOSK_INSTALL_DIR/VERSION" ] && [ -s "$AUNDEKIOSK_INSTALL_DIR/VERSION" ]; then
+    msg "$SUCCESS" "Version: $(cat "$AUNDEKIOSK_INSTALL_DIR/VERSION")"
 fi
 
 msg "$INFO" "Installing the privileged helper whitelist (sudoers)..."

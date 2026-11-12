@@ -12,3 +12,10 @@ monitor-config.json
 audit.log
 videos/
 state/
+logs/
+
+# Local distribution build output (build-package.ps1 output; not source code)
+/dist/
+
+# Bundled ARM binaries + Deno cache fetched from a Pi for LOCAL_INSTALL packaging
+tools/

@@ -31,7 +31,7 @@ $allOk  = $true
 foreach ($pi in $pis) {
     $args = @("-ssh", "pi@$($pi.ip)", "-pw", $pw, "-batch")
     if ($pi.hk) { $args += @("-hostkey", $pi.hk) }
-    $args += "uptime && df -h / | tail -1 && free -h | grep Mem && vcgencmd measure_temp 2>/dev/null; systemctl is-active aundekiosk-dashboard aundekiosk-runner aundekiosk-monitor snmpd wayvnc 2>/dev/null | paste - - - - -; git -C /opt/aundekiosk -c safe.directory=/opt/aundekiosk log --oneline -1 2>/dev/null"
+    $args += "uptime && df -h / | tail -1 && free -h | grep Mem && vcgencmd measure_temp 2>/dev/null; systemctl is-active aundekiosk-dashboard aundekiosk-runner aundekiosk-monitor snmpd wayvnc 2>/dev/null | paste - - - - -; cat /opt/aundekiosk/VERSION 2>/dev/null || git -C /opt/aundekiosk -c safe.directory=/opt/aundekiosk log --oneline -1 2>/dev/null"
 
     $out = & $plink @args 2>&1
     $lines = $out | Where-Object { $_ -and $_ -notmatch "^$" }
